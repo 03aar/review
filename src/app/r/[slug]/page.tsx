@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Star, Mic, MicOff, Check, Edit3, Loader2, Send, ArrowLeft, Sparkles } from "lucide-react"
+import { Star, Mic, MicOff, Check, Edit3, Loader2, Send, ArrowLeft, Zap } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 type Step = "rating" | "feedback" | "preview" | "success"
@@ -49,8 +49,7 @@ export default function ReviewCapturePage() {
   const [isPosting, setIsPosting] = useState(false)
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["google"])
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   useEffect(() => {
     async function fetchBusiness() {
@@ -71,41 +70,54 @@ export default function ReviewCapturePage() {
     fetchBusiness()
   }, [slug])
 
-  async function handleRatingSelect(value: number) {
+  function handleRatingSelect(value: number) {
     setRating(value)
     setTimeout(() => setStep("feedback"), 300)
   }
 
-  async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream)
-      mediaRecorderRef.current = mediaRecorder
-      chunksRef.current = []
-
-      mediaRecorder.ondataavailable = (e) => {
-        chunksRef.current.push(e.data)
-      }
-
-      mediaRecorder.onstop = () => {
-        // In a production app, we'd transcribe the audio here
-        // For now, we'll simulate transcription
-        stream.getTracks().forEach((t) => t.stop())
-        setRawInput(
-          (prev) => prev + (prev ? " " : "") + "Voice note recorded - great experience overall"
-        )
-      }
-
-      mediaRecorder.start()
-      setIsRecording(true)
-    } catch {
-      // If microphone access denied, just let user type
+  function startRecording() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      // Fallback: no speech API available
+      return
     }
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = "en-US"
+
+    let finalTranscript = ""
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let interim = ""
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + " "
+        } else {
+          interim += transcript
+        }
+      }
+      setRawInput(finalTranscript + interim)
+    }
+
+    recognition.onerror = () => {
+      setIsRecording(false)
+    }
+
+    recognition.onend = () => {
+      setIsRecording(false)
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
+    setIsRecording(true)
   }
 
   function stopRecording() {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
       setIsRecording(false)
     }
   }
@@ -130,7 +142,6 @@ export default function ReviewCapturePage() {
       setEditedReview(data.generatedReview)
       setStep("preview")
     } catch {
-      // Fallback
       const fallback = `Had a great experience at ${business.name}! ${rawInput}`
       setGeneratedReview(fallback)
       setEditedReview(fallback)
@@ -160,7 +171,7 @@ export default function ReviewCapturePage() {
       })
       setStep("success")
     } catch {
-      setStep("success") // Show success anyway for demo
+      setStep("success")
     } finally {
       setIsPosting(false)
     }
@@ -174,17 +185,17 @@ export default function ReviewCapturePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen flex items-center justify-center bg-[#eef8e6]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
       </div>
     )
   }
 
   if (notFound || !business) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
-        <Card className="w-full max-w-md text-center p-8">
-          <h1 className="text-xl font-semibold mb-2">Business not found</h1>
+      <div className="min-h-screen flex items-center justify-center bg-[#eef8e6] p-4">
+        <Card className="w-full max-w-md text-center p-8 border-[#b8dca8]">
+          <h1 className="text-xl font-semibold mb-2 text-[#1a3a2a]">Business not found</h1>
           <p className="text-muted-foreground">
             This review link doesn&apos;t seem to be valid. Please check with the business for the correct link.
           </p>
@@ -194,10 +205,10 @@ export default function ReviewCapturePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#eef8e6] p-4">
       <div className="w-full max-w-md">
         <AnimatePresence mode="wait">
-          {/* ========== STEP 1: RATING ========== */}
+          {/* STEP 1: RATING */}
           {step === "rating" && (
             <motion.div
               key="rating"
@@ -206,11 +217,8 @@ export default function ReviewCapturePage() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="overflow-hidden">
-                <div
-                  className="h-2"
-                  style={{ backgroundColor: business.primaryColor }}
-                />
+              <Card className="overflow-hidden border-[#b8dca8]">
+                <div className="h-2 bg-[#1a3a2a]" />
                 <CardContent className="pt-8 pb-8 text-center space-y-6">
                   <div>
                     {business.logoUrl ? (
@@ -220,18 +228,15 @@ export default function ReviewCapturePage() {
                         className="h-16 w-16 rounded-full mx-auto mb-3 object-cover"
                       />
                     ) : (
-                      <div
-                        className="h-16 w-16 rounded-full mx-auto mb-3 flex items-center justify-center text-white text-2xl font-bold"
-                        style={{ backgroundColor: business.primaryColor }}
-                      >
+                      <div className="h-16 w-16 rounded-full mx-auto mb-3 flex items-center justify-center text-white text-2xl font-bold bg-[#1a3a2a]">
                         {business.name[0]}
                       </div>
                     )}
-                    <h1 className="text-xl font-semibold">{business.name}</h1>
+                    <h1 className="text-xl font-semibold text-[#1a3a2a]">{business.name}</h1>
                   </div>
 
                   <div>
-                    <h2 className="text-lg font-medium mb-4">
+                    <h2 className="text-lg font-medium mb-4 text-[#1a3a2a]">
                       How was your experience?
                     </h2>
                     <div className="flex justify-center gap-3">
@@ -241,8 +246,8 @@ export default function ReviewCapturePage() {
                           onClick={() => handleRatingSelect(r.value)}
                           className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all hover:scale-110 ${
                             rating === r.value
-                              ? "bg-blue-100 scale-110"
-                              : "hover:bg-gray-100"
+                              ? "bg-[#d4f0c0] scale-110"
+                              : "hover:bg-[#eef8e6]"
                           }`}
                         >
                           <span className="text-3xl">{r.emoji}</span>
@@ -258,7 +263,7 @@ export default function ReviewCapturePage() {
             </motion.div>
           )}
 
-          {/* ========== STEP 2: FEEDBACK ========== */}
+          {/* STEP 2: FEEDBACK */}
           {step === "feedback" && (
             <motion.div
               key="feedback"
@@ -267,11 +272,8 @@ export default function ReviewCapturePage() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="overflow-hidden">
-                <div
-                  className="h-2"
-                  style={{ backgroundColor: business.primaryColor }}
-                />
+              <Card className="overflow-hidden border-[#b8dca8]">
+                <div className="h-2 bg-[#1a3a2a]" />
                 <CardContent className="pt-6 pb-6 space-y-4">
                   <button
                     onClick={() => setStep("rating")}
@@ -285,7 +287,7 @@ export default function ReviewCapturePage() {
                     <span className="text-4xl">
                       {RATING_EMOJIS.find((r) => r.value === rating)?.emoji}
                     </span>
-                    <h2 className="text-lg font-medium mt-2">
+                    <h2 className="text-lg font-medium mt-2 text-[#1a3a2a]">
                       {rating >= 4
                         ? "Awesome! What did you love?"
                         : rating === 3
@@ -311,7 +313,7 @@ export default function ReviewCapturePage() {
                         className={`absolute bottom-3 right-3 p-2 rounded-full transition-colors ${
                           isRecording
                             ? "bg-red-100 text-red-600 animate-pulse"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            : "bg-[#d4f0c0] text-[#1a3a2a] hover:bg-[#b8dca8]"
                         }`}
                       >
                         {isRecording ? (
@@ -324,7 +326,7 @@ export default function ReviewCapturePage() {
 
                     {isRecording && (
                       <p className="text-sm text-red-600 text-center animate-pulse">
-                        Recording... Tap the mic to stop
+                        Listening... Tap the mic to stop
                       </p>
                     )}
 
@@ -338,17 +340,17 @@ export default function ReviewCapturePage() {
                   <Button
                     onClick={handleGenerateReview}
                     disabled={!rawInput.trim() || isGenerating}
-                    className="w-full"
+                    className="w-full bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
                     size="lg"
                   >
                     {isGenerating ? (
                       <>
-                        <Sparkles className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         Creating your review...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4" />
+                        <Zap className="h-4 w-4" />
                         Generate My Review
                       </>
                     )}
@@ -362,7 +364,7 @@ export default function ReviewCapturePage() {
             </motion.div>
           )}
 
-          {/* ========== STEP 3: PREVIEW ========== */}
+          {/* STEP 3: PREVIEW */}
           {step === "preview" && (
             <motion.div
               key="preview"
@@ -371,11 +373,8 @@ export default function ReviewCapturePage() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="overflow-hidden">
-                <div
-                  className="h-2"
-                  style={{ backgroundColor: business.primaryColor }}
-                />
+              <Card className="overflow-hidden border-[#b8dca8]">
+                <div className="h-2 bg-[#1a3a2a]" />
                 <CardContent className="pt-6 pb-6 space-y-4">
                   <button
                     onClick={() => setStep("feedback")}
@@ -386,7 +385,7 @@ export default function ReviewCapturePage() {
                   </button>
 
                   <div className="text-center">
-                    <h2 className="text-lg font-medium">
+                    <h2 className="text-lg font-medium text-[#1a3a2a]">
                       Here&apos;s your review
                     </h2>
                     <div className="flex justify-center gap-0.5 mt-1">
@@ -395,7 +394,7 @@ export default function ReviewCapturePage() {
                           key={i}
                           className={`h-5 w-5 ${
                             i < rating
-                              ? "text-yellow-400 fill-yellow-400"
+                              ? "text-[#f0d040] fill-[#f0d040]"
                               : "text-gray-300"
                           }`}
                         />
@@ -403,7 +402,7 @@ export default function ReviewCapturePage() {
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4 relative">
+                  <div className="bg-[#eef8e6] rounded-lg p-4 relative">
                     {isEditing ? (
                       <Textarea
                         value={editedReview}
@@ -411,18 +410,18 @@ export default function ReviewCapturePage() {
                         className="min-h-[120px] bg-white"
                       />
                     ) : (
-                      <p className="text-sm leading-relaxed">
+                      <p className="text-sm leading-relaxed text-[#1a3a2a]">
                         &ldquo;{editedReview}&rdquo;
                       </p>
                     )}
                     <button
                       onClick={() => setIsEditing(!isEditing)}
-                      className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-gray-200 transition-colors"
+                      className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-[#d4f0c0] transition-colors"
                     >
                       {isEditing ? (
-                        <Check className="h-4 w-4" />
+                        <Check className="h-4 w-4 text-[#2d6a4f]" />
                       ) : (
-                        <Edit3 className="h-4 w-4" />
+                        <Edit3 className="h-4 w-4 text-[#4a7a5a]" />
                       )}
                     </button>
                   </div>
@@ -434,7 +433,7 @@ export default function ReviewCapturePage() {
                   )}
 
                   <div>
-                    <p className="text-sm font-medium mb-2">
+                    <p className="text-sm font-medium mb-2 text-[#1a3a2a]">
                       Share on:
                     </p>
                     <div className="flex gap-2 flex-wrap">
@@ -449,7 +448,7 @@ export default function ReviewCapturePage() {
                           onClick={() => togglePlatform(p.id)}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-colors ${
                             selectedPlatforms.includes(p.id)
-                              ? "bg-blue-50 border-blue-300 text-blue-700"
+                              ? "bg-[#d4f0c0] border-[#2d6a4f] text-[#1a3a2a]"
                               : "border-gray-200 text-gray-500 hover:border-gray-300"
                           }`}
                         >
@@ -466,7 +465,7 @@ export default function ReviewCapturePage() {
                   <Button
                     onClick={handlePostReview}
                     disabled={isPosting || selectedPlatforms.length === 0}
-                    className="w-full"
+                    className="w-full bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
                     size="lg"
                   >
                     {isPosting ? (
@@ -486,7 +485,7 @@ export default function ReviewCapturePage() {
             </motion.div>
           )}
 
-          {/* ========== STEP 4: SUCCESS ========== */}
+          {/* STEP 4: SUCCESS */}
           {step === "success" && (
             <motion.div
               key="success"
@@ -494,16 +493,13 @@ export default function ReviewCapturePage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4 }}
             >
-              <Card className="overflow-hidden">
-                <div
-                  className="h-2"
-                  style={{ backgroundColor: business.primaryColor }}
-                />
+              <Card className="overflow-hidden border-[#b8dca8]">
+                <div className="h-2 bg-[#1a3a2a]" />
                 <CardContent className="pt-8 pb-8 text-center space-y-4">
-                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                    <Check className="h-8 w-8 text-green-600" />
+                  <div className="mx-auto w-16 h-16 bg-[#d4f0c0] rounded-full flex items-center justify-center">
+                    <Check className="h-8 w-8 text-[#2d6a4f]" />
                   </div>
-                  <h2 className="text-xl font-semibold">
+                  <h2 className="text-xl font-semibold text-[#1a3a2a]">
                     Thank you!
                   </h2>
                   <p className="text-muted-foreground">
@@ -516,13 +512,13 @@ export default function ReviewCapturePage() {
                         key={i}
                         className={`h-6 w-6 ${
                           i < rating
-                            ? "text-yellow-400 fill-yellow-400"
+                            ? "text-[#f0d040] fill-[#f0d040]"
                             : "text-gray-300"
                         }`}
                       />
                     ))}
                   </div>
-                  <p className="text-sm text-muted-foreground bg-gray-50 rounded-lg p-3 italic">
+                  <p className="text-sm text-muted-foreground bg-[#eef8e6] rounded-lg p-3 italic">
                     &ldquo;{editedReview}&rdquo;
                   </p>
                 </CardContent>
@@ -533,7 +529,7 @@ export default function ReviewCapturePage() {
 
         <p className="text-center text-xs text-muted-foreground mt-4">
           Powered by{" "}
-          <span className="font-medium text-blue-600">ReviewForge</span>
+          <span className="font-medium text-[#2d6a4f]">ReviewForge</span>
         </p>
       </div>
     </div>

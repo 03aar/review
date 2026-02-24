@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
-import { Star } from "lucide-react"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -35,7 +34,7 @@ export default function RegisterPage() {
         toast.success("Account created! Setting up your dashboard...")
         router.push("/dashboard")
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred. Please try again.")
     } finally {
       setLoading(false)
@@ -43,16 +42,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-[#eef8e6] p-4">
+      <Card className="w-full max-w-md border-[#b8dca8]">
         <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Star className="h-8 w-8 text-blue-600 fill-blue-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              ReviewForge
-            </span>
+          <div className="flex items-center justify-center gap-2.5 mb-2">
+            <div className="w-10 h-10 bg-[#1a3a2a] rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-xl font-serif">R</span>
+            </div>
           </div>
-          <CardTitle className="text-xl">Get started</CardTitle>
+          <CardTitle className="text-xl text-[#1a3a2a]">Get started</CardTitle>
           <CardDescription>Create your account and start collecting reviews</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -94,12 +92,12 @@ export default function RegisterPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            <Button type="submit" className="w-full bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]" size="lg" disabled={loading}>
               {loading ? "Creating account..." : "Create Account"}
             </Button>
             <p className="text-sm text-muted-foreground text-center">
               Already have an account?{" "}
-              <Link href="/login" className="text-blue-600 hover:underline font-medium">
+              <Link href="/login" className="text-[#2d6a4f] hover:underline font-medium">
                 Sign in
               </Link>
             </p>

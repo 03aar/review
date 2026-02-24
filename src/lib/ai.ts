@@ -98,8 +98,8 @@ function extractEntities(input: string): ExtractedEntities {
 
   // Extract unique phrases as specifics (anything in quotes or after "especially", "loved the", etc.)
   const specificPatterns = [
-    /(?:loved|liked|enjoyed|tried|had|got|ordered)\s+(?:the\s+)?(.{3,30?)(?:\.|,|!|\band\b)/gi,
-    /(?:especially|particularly)\s+(?:the\s+)?(.{3,30?})(?:\.|,|!)/gi,
+    /(?:loved|liked|enjoyed|tried|had|got|ordered)\s+(?:the\s+)?(.{3,30}?)(?:\.|,|!|\band\b)/gi,
+    /(?:especially|particularly)\s+(?:the\s+)?(.{3,30}?)(?:\.|,|!)/gi,
   ]
   specificPatterns.forEach(pat => {
     let m

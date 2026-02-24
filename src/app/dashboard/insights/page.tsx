@@ -53,7 +53,7 @@ const SENTIMENT_COLORS = {
   negative: "#ef4444",
 }
 
-const SOURCE_COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#06b6d4"]
+const SOURCE_COLORS = ["#2d6a4f", "#52b788", "#f0d040", "#95d5b2", "#1b4332"]
 
 export default function InsightsPage() {
   const business = useBusinessContext()
@@ -70,7 +70,7 @@ export default function InsightsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
       </div>
     )
   }
@@ -222,7 +222,7 @@ export default function InsightsPage() {
                   <XAxis type="number" />
                   <YAxis type="category" dataKey="rating" width={60} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" fill="#2d6a4f" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -266,7 +266,7 @@ export default function InsightsPage() {
                   <Bar
                     yAxisId="left"
                     dataKey="reviews"
-                    fill="#3b82f6"
+                    fill="#2d6a4f"
                     name="Reviews"
                   />
                   <Line

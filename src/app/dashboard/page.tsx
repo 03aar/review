@@ -46,13 +46,13 @@ export default function DashboardOverview() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-[#1a3a2a]">Dashboard</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="animate-pulse">
+            <Card key={i} className="animate-pulse border-[#b8dca8]">
               <CardContent className="pt-6">
-                <div className="h-8 bg-gray-200 rounded w-1/2 mb-2" />
-                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-8 bg-[#d4f0c0] rounded w-1/2 mb-2" />
+                <div className="h-4 bg-[#d4f0c0] rounded w-3/4" />
               </CardContent>
             </Card>
           ))}
@@ -71,7 +71,7 @@ export default function DashboardOverview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{business.name}</h1>
+        <h1 className="text-2xl font-bold text-[#1a3a2a]">{business.name}</h1>
         <p className="text-muted-foreground">
           Review dashboard overview
         </p>
@@ -79,59 +79,59 @@ export default function DashboardOverview() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-[#b8dca8]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Reviews</p>
-                <p className="text-3xl font-bold">{insights?.totalReviews || 0}</p>
+                <p className="text-3xl font-bold text-[#1a3a2a]">{insights?.totalReviews || 0}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <MessageSquare className="h-5 w-5 text-blue-600" />
+              <div className="p-3 bg-[#d4f0c0] rounded-full">
+                <MessageSquare className="h-5 w-5 text-[#2d6a4f]" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-[#b8dca8]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Average Rating</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-3xl font-bold">
+                  <p className="text-3xl font-bold text-[#1a3a2a]">
                     {insights?.averageRating?.toFixed(1) || "0.0"}
                   </p>
-                  <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                  <Star className="h-5 w-5 text-[#f0d040] fill-[#f0d040]" />
                 </div>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-full">
-                <Star className="h-5 w-5 text-yellow-600" />
+              <div className="p-3 bg-[#fef3c7] rounded-full">
+                <Star className="h-5 w-5 text-[#f0d040]" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-[#b8dca8]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">This Week</p>
-                <p className="text-3xl font-bold">{thisWeekReviews.length}</p>
+                <p className="text-3xl font-bold text-[#1a3a2a]">{thisWeekReviews.length}</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+              <div className="p-3 bg-[#d4f0c0] rounded-full">
+                <TrendingUp className="h-5 w-5 text-[#2d6a4f]" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-[#b8dca8]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Positive</p>
-                <p className="text-3xl font-bold">
+                <p className="text-3xl font-bold text-[#1a3a2a]">
                   {insights?.sentimentBreakdown
                     ? Math.round(
                         (insights.sentimentBreakdown.positive /
@@ -142,8 +142,8 @@ export default function DashboardOverview() {
                   %
                 </p>
               </div>
-              <div className="p-3 bg-emerald-100 rounded-full">
-                <ThumbsUp className="h-5 w-5 text-emerald-600" />
+              <div className="p-3 bg-[#d4f0c0] rounded-full">
+                <ThumbsUp className="h-5 w-5 text-[#2d6a4f]" />
               </div>
             </div>
           </CardContent>
@@ -152,9 +152,9 @@ export default function DashboardOverview() {
 
       {/* Rating Distribution */}
       {insights && insights.totalReviews > 0 && (
-        <Card>
+        <Card className="border-[#b8dca8]">
           <CardHeader>
-            <CardTitle className="text-base">Rating Distribution</CardTitle>
+            <CardTitle className="text-base text-[#1a3a2a]">Rating Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -163,11 +163,11 @@ export default function DashboardOverview() {
                 const pct = (count / insights.totalReviews) * 100
                 return (
                   <div key={r} className="flex items-center gap-3">
-                    <span className="text-sm font-medium w-4">{r}</span>
-                    <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                    <span className="text-sm font-medium w-4 text-[#1a3a2a]">{r}</span>
+                    <Star className="h-4 w-4 text-[#f0d040] fill-[#f0d040]" />
+                    <div className="flex-1 h-2.5 bg-[#eef8e6] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-yellow-400 rounded-full transition-all"
+                        className="h-full bg-[#f0d040] rounded-full transition-all"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -183,9 +183,9 @@ export default function DashboardOverview() {
       )}
 
       {/* Recent Reviews */}
-      <Card>
+      <Card className="border-[#b8dca8]">
         <CardHeader>
-          <CardTitle className="text-base">Recent Reviews</CardTitle>
+          <CardTitle className="text-base text-[#1a3a2a]">Recent Reviews</CardTitle>
         </CardHeader>
         <CardContent>
           {recentReviews.length === 0 ? (
@@ -201,10 +201,10 @@ export default function DashboardOverview() {
               {recentReviews.map((r) => (
                 <div
                   key={r.id}
-                  className="flex gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex gap-4 p-3 rounded-lg hover:bg-[#eef8e6] transition-colors"
                 >
                   <div className="shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium text-sm">
+                    <div className="w-10 h-10 rounded-full bg-[#d4f0c0] flex items-center justify-center text-[#1a3a2a] font-medium text-sm">
                       {r.customerName
                         ? r.customerName[0].toUpperCase()
                         : "?"}
@@ -212,7 +212,7 @@ export default function DashboardOverview() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm">
+                      <span className="font-medium text-sm text-[#1a3a2a]">
                         {r.customerName || "Anonymous"}
                       </span>
                       <div className="flex gap-0.5">
@@ -221,7 +221,7 @@ export default function DashboardOverview() {
                             key={i}
                             className={`h-3 w-3 ${
                               i < r.rating
-                                ? "text-yellow-400 fill-yellow-400"
+                                ? "text-[#f0d040] fill-[#f0d040]"
                                 : "text-gray-300"
                             }`}
                           />
@@ -230,12 +230,16 @@ export default function DashboardOverview() {
                       <Badge
                         variant={
                           r.sentiment === "positive"
-                            ? "success"
+                            ? "default"
                             : r.sentiment === "negative"
                             ? "destructive"
                             : "secondary"
                         }
-                        className="text-[10px]"
+                        className={`text-[10px] ${
+                          r.sentiment === "positive"
+                            ? "bg-[#d4f0c0] text-[#1a3a2a] hover:bg-[#d4f0c0]"
+                            : ""
+                        }`}
                       >
                         {r.sentiment}
                       </Badge>

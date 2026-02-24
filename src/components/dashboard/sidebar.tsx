@@ -8,7 +8,6 @@ import {
   MessageSquare,
   BarChart3,
   Settings,
-  Star,
   LogOut,
   Link as LinkIcon,
   Copy,
@@ -54,24 +53,26 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col border-r bg-white">
+    <div className="flex h-full flex-col border-r border-[#b8dca8] bg-white">
       {/* Logo */}
-      <div className="flex items-center gap-2 px-6 py-5 border-b">
-        <Star className="h-6 w-6 text-blue-600 fill-blue-600" />
-        <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+      <div className="flex items-center gap-2.5 px-6 py-5 border-b border-[#b8dca8]">
+        <div className="w-8 h-8 bg-[#1a3a2a] rounded-full flex items-center justify-center">
+          <span className="text-white font-bold text-sm font-serif">R</span>
+        </div>
+        <span className="text-lg font-bold text-[#1a3a2a]">
           ReviewForge
         </span>
       </div>
 
       {/* Review Link */}
       {reviewLink && (
-        <div className="mx-4 mt-4 p-3 rounded-lg bg-blue-50 border border-blue-100">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-blue-700 mb-1.5">
+        <div className="mx-4 mt-4 p-3 rounded-lg bg-[#eef8e6] border border-[#b8dca8]">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-[#2d6a4f] mb-1.5">
             <LinkIcon className="h-3.5 w-3.5" />
             Your Review Link
           </div>
           <div className="flex items-center gap-1">
-            <code className="text-xs bg-white px-2 py-1 rounded border flex-1 truncate">
+            <code className="text-xs bg-white px-2 py-1 rounded border border-[#b8dca8] flex-1 truncate text-[#1a3a2a]">
               /r/{businessSlug}
             </code>
             <Button
@@ -81,7 +82,7 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
               onClick={handleCopyLink}
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-green-600" />
+                <Check className="h-3.5 w-3.5 text-[#2d6a4f]" />
               ) : (
                 <Copy className="h-3.5 w-3.5" />
               )}
@@ -104,8 +105,8 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  ? "bg-[#d4f0c0] text-[#1a3a2a]"
+                  : "text-[#4a7a5a] hover:bg-[#eef8e6] hover:text-[#1a3a2a]"
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -116,10 +117,10 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
       </nav>
 
       {/* Sign Out */}
-      <div className="p-3 border-t">
+      <div className="p-3 border-t border-[#b8dca8]">
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#4a7a5a] hover:bg-[#eef8e6] hover:text-[#1a3a2a] transition-colors w-full"
         >
           <LogOut className="h-4 w-4" />
           Sign Out

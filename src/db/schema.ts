@@ -71,7 +71,7 @@ export const business = sqliteTable("business", {
   googleConnected: integer("google_connected", { mode: "boolean" }).notNull().default(false),
   yelpConnected: integer("yelp_connected", { mode: "boolean" }).notNull().default(false),
   facebookConnected: integer("facebook_connected", { mode: "boolean" }).notNull().default(false),
-  primaryColor: text("primary_color").notNull().default("#2563eb"),
+  primaryColor: text("primary_color").notNull().default("#1a3a2a"),
   autoRespond: integer("auto_respond", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),

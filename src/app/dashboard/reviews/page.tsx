@@ -177,7 +177,7 @@ export default function ReviewsPage() {
             onClick={() => setFilter(f)}
             className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
               filter === f
-                ? "bg-blue-100 text-blue-700"
+                ? "bg-[#d4f0c0] text-[#1a3a2a]"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -211,7 +211,7 @@ export default function ReviewsPage() {
               <CardContent className="pt-5 pb-4">
                 <div className="flex gap-4">
                   <div className="shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium">
+                    <div className="w-10 h-10 rounded-full bg-[#d4f0c0] flex items-center justify-center text-[#1a3a2a] font-medium">
                       {r.customerName ? r.customerName[0].toUpperCase() : "?"}
                     </div>
                   </div>
@@ -234,12 +234,11 @@ export default function ReviewsPage() {
                       </div>
                       <Badge
                         variant={
-                          r.sentiment === "positive"
-                            ? "success"
-                            : r.sentiment === "negative"
+                          r.sentiment === "negative"
                             ? "destructive"
                             : "secondary"
                         }
+                        className={r.sentiment === "positive" ? "bg-[#d4f0c0] text-[#1a3a2a] hover:bg-[#d4f0c0]" : ""}
                       >
                         {r.sentiment}
                       </Badge>
@@ -301,7 +300,7 @@ export default function ReviewsPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-blue-600" />
+              <Sparkles className="h-5 w-5 text-[#2d6a4f]" />
               AI Response
             </DialogTitle>
             <DialogDescription>
@@ -368,7 +367,7 @@ export default function ReviewsPage() {
 
                 {isGeneratingResponse ? (
                   <div className="flex items-center justify-center py-8">
-                    <Sparkles className="h-5 w-5 animate-spin text-blue-600 mr-2" />
+                    <Sparkles className="h-5 w-5 animate-spin text-[#2d6a4f] mr-2" />
                     <span className="text-sm text-muted-foreground">
                       Generating response...
                     </span>
@@ -380,7 +379,7 @@ export default function ReviewsPage() {
                     className="min-h-[120px]"
                   />
                 ) : (
-                  <div className="bg-blue-50 rounded-lg p-3 text-sm">
+                  <div className="bg-[#eef8e6] rounded-lg p-3 text-sm">
                     {responseText}
                   </div>
                 )}
