@@ -22,11 +22,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = await req.json()
+  let body
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
   const { name, category, description, address, phone, website, primaryColor } = body
 
-  if (!name) {
+  if (!name || typeof name !== "string" || name.trim().length === 0) {
     return NextResponse.json({ error: "Business name is required" }, { status: 400 })
+  }
+
+  if (name.length > 200) {
+    return NextResponse.json({ error: "Business name too long" }, { status: 400 })
   }
 
   let slug = generateSlug(name)
@@ -50,7 +59,7 @@ export async function POST(req: NextRequest) {
     address: address || null,
     phone: phone || null,
     website: website || null,
-    primaryColor: primaryColor || "#2563eb",
+    primaryColor: primaryColor || "#1a3a2a",
     createdAt: now,
     updatedAt: now,
   })

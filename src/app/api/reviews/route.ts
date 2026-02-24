@@ -41,11 +41,21 @@ export async function GET(req: NextRequest) {
 
 // POST: Submit a new review (from customer-facing capture flow)
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-  const { businessId, rating, rawInput, rawInputType, customerName, customerEmail, platform, source } = body
+  let body
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+  const { businessId, rawInput, rawInputType, customerName, customerEmail, platform, source } = body
+  const rating = Number(body.rating)
 
   if (!businessId || !rating) {
     return NextResponse.json({ error: "businessId and rating are required" }, { status: 400 })
+  }
+
+  if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+    return NextResponse.json({ error: "rating must be an integer between 1 and 5" }, { status: 400 })
   }
 
   // Fetch business for AI generation

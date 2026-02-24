@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, createContext, useContext } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "@/lib/auth-client"
 import { Sidebar } from "@/components/dashboard/sidebar"
@@ -11,6 +11,13 @@ interface Business {
   name: string
   slug: string
   category: string
+}
+
+export const BusinessContext = createContext<Business | null>(null)
+export function useBusinessContext() {
+  const ctx = useContext(BusinessContext)
+  if (!ctx) throw new Error("No business context")
+  return ctx
 }
 
 export default function DashboardLayout({
@@ -46,7 +53,7 @@ export default function DashboardLayout({
   if (isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
       </div>
     )
   }
@@ -54,7 +61,7 @@ export default function DashboardLayout({
   if (!session) return null
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#eef8e6]">
       <div className="w-64 shrink-0 hidden md:block">
         <Sidebar businessSlug={business?.slug} />
       </div>
@@ -62,7 +69,7 @@ export default function DashboardLayout({
         <div className="p-6 max-w-7xl mx-auto">
           {loadingBusiness ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
             </div>
           ) : !business ? (
             <SetupBusiness
@@ -79,17 +86,6 @@ export default function DashboardLayout({
   )
 }
 
-// Business context
-import { createContext, useContext } from "react"
-
-export const BusinessContext = createContext<Business | null>(null)
-export function useBusinessContext() {
-  const ctx = useContext(BusinessContext)
-  if (!ctx) throw new Error("No business context")
-  return ctx
-}
-
-// Setup component for first-time users
 function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
   const [name, setName] = useState("")
   const [category, setCategory] = useState("restaurant")
@@ -132,14 +128,14 @@ function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
   return (
     <div className="max-w-lg mx-auto mt-16">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold mb-2">Set up your business</h1>
+        <h1 className="text-2xl font-bold mb-2 text-[#1a3a2a]">Set up your business</h1>
         <p className="text-muted-foreground">
           Let&apos;s get your review collection link ready in under a minute.
         </p>
       </div>
       <form onSubmit={handleCreate} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1.5">
+          <label className="block text-sm font-medium mb-1.5 text-[#1a3a2a]">
             Business Name
           </label>
           <input
@@ -147,18 +143,18 @@ function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Luigi's Pizzeria"
-            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            className="w-full px-3 py-2 border border-[#b8dca8] rounded-lg text-sm focus:ring-2 focus:ring-[#2d6a4f] focus:border-transparent outline-none"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1.5">
+          <label className="block text-sm font-medium mb-1.5 text-[#1a3a2a]">
             Category
           </label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+            className="w-full px-3 py-2 border border-[#b8dca8] rounded-lg text-sm focus:ring-2 focus:ring-[#2d6a4f] focus:border-transparent outline-none bg-white"
           >
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -172,7 +168,7 @@ function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
         <button
           type="submit"
           disabled={!name.trim() || loading}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="w-full bg-[#1a3a2a] text-[#e4f5d6] py-2.5 rounded-lg font-medium hover:bg-[#0f2a1c] disabled:opacity-50 transition-colors"
         >
           {loading ? "Creating..." : "Create & Get My Review Link"}
         </button>

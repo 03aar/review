@@ -94,11 +94,11 @@ export default function SettingsPage() {
             </Button>
           </div>
 
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-blue-800 mb-2">
+          <div className="bg-[#eef8e6] border border-[#b8dca8] rounded-lg p-4">
+            <h4 className="text-sm font-medium text-[#1a3a2a] mb-2">
               Tips for sharing your review link
             </h4>
-            <ul className="text-sm text-blue-700 space-y-1">
+            <ul className="text-sm text-[#4a7a5a] space-y-1">
               <li>- Print QR code on receipts and table cards</li>
               <li>- Text it to customers after their visit</li>
               <li>- Add it to your email signature</li>
@@ -159,7 +159,7 @@ export default function SettingsPage() {
             {
               name: "Google Business Profile",
               icon: "G",
-              color: "bg-blue-600",
+              color: "bg-[#4285f4]",
               description: "Post reviews directly to Google Maps",
               connected: false,
               primary: true,
@@ -174,7 +174,7 @@ export default function SettingsPage() {
             {
               name: "Facebook",
               icon: "f",
-              color: "bg-blue-700",
+              color: "bg-[#1877f2]",
               description: "Post to your Facebook Business page",
               connected: false,
             },
@@ -267,7 +267,7 @@ export default function SettingsPage() {
                   key={tone}
                   className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                     tone === "Friendly"
-                      ? "bg-blue-50 border-blue-300 text-blue-700"
+                      ? "bg-[#d4f0c0] border-[#2d6a4f] text-[#1a3a2a]"
                       : "border-gray-200 text-gray-600 hover:border-gray-300"
                   }`}
                 >
