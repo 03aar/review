@@ -1,26 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
 import { business } from "@/db/schema"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
 import { eq } from "drizzle-orm"
 import { generateSlug } from "@/lib/utils"
 
-export async function GET(req: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+const DEMO_USER_ID = "demo-user"
 
-  const businesses = await db.select().from(business).where(eq(business.userId, session.user.id))
+export async function GET(req: NextRequest) {
+  const businesses = await db.select().from(business).where(eq(business.userId, DEMO_USER_ID))
   return NextResponse.json(businesses)
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
 
   let body
   try {
@@ -51,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   await db.insert(business).values({
     id,
-    userId: session.user.id,
+    userId: DEMO_USER_ID,
     name,
     slug,
     category: category || "restaurant",

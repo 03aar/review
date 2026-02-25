@@ -1,30 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
-import { review, business } from "@/db/schema"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { eq, and, desc, sql } from "drizzle-orm"
+import { review } from "@/db/schema"
+import { eq, desc } from "drizzle-orm"
 
 export async function GET(req: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
   const searchParams = req.nextUrl.searchParams
   const businessId = searchParams.get("businessId")
 
   if (!businessId) {
     return NextResponse.json({ error: "businessId is required" }, { status: 400 })
-  }
-
-  // Verify ownership
-  const biz = await db
-    .select()
-    .from(business)
-    .where(and(eq(business.id, businessId), eq(business.userId, session.user.id)))
-  if (biz.length === 0) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   // Fetch all reviews for analysis

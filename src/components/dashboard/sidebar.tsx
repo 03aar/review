@@ -13,7 +13,6 @@ import {
   Copy,
   Check,
 } from "lucide-react"
-import { signOut } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -47,8 +46,7 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
     }
   }
 
-  async function handleSignOut() {
-    await signOut()
+  function handleSignOut() {
     router.push("/login")
   }
 
