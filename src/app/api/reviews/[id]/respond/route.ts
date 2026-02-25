@@ -1,84 +1,31 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/db"
-import { review, reviewResponse, business } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { DEMO_REVIEWS, DEMO_BUSINESS } from "@/lib/demo-data"
 import { generateResponse } from "@/lib/ai"
 
-// POST: Generate or update a response for a review
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: reviewId } = await params
   const body = await req.json()
-  const { action, editedResponse } = body // action: "regenerate" | "approve" | "edit"
+  const { action, editedResponse } = body
 
-  // Fetch review
-  const rev = await db.select().from(review).where(eq(review.id, reviewId))
-  if (rev.length === 0) {
+  const rev = DEMO_REVIEWS.find((r) => r.id === reviewId)
+  if (!rev) {
     return NextResponse.json({ error: "Review not found" }, { status: 404 })
   }
 
-  // Fetch business
-  const biz = await db
-    .select()
-    .from(business)
-    .where(eq(business.id, rev[0].businessId))
-  if (biz.length === 0) {
-    return NextResponse.json({ error: "Business not found" }, { status: 404 })
-  }
-
-  // Check for existing response
-  const existing = await db
-    .select()
-    .from(reviewResponse)
-    .where(eq(reviewResponse.reviewId, reviewId))
-
   if (action === "regenerate") {
     const newResponse = generateResponse({
-      review: rev[0].finalReview || rev[0].generatedReview || "",
-      rating: rev[0].rating,
-      businessName: biz[0].name,
-      customerName: rev[0].customerName || undefined,
+      review: rev.finalReview || rev.generatedReview || "",
+      rating: rev.rating,
+      businessName: DEMO_BUSINESS.name,
+      customerName: rev.customerName || undefined,
     })
-
-    if (existing.length > 0) {
-      await db
-        .update(reviewResponse)
-        .set({
-          generatedResponse: newResponse,
-          finalResponse: null,
-          status: "draft",
-        })
-        .where(eq(reviewResponse.id, existing[0].id))
-    } else {
-      await db.insert(reviewResponse).values({
-        id: crypto.randomUUID(),
-        reviewId,
-        businessId: rev[0].businessId,
-        generatedResponse: newResponse,
-        status: "draft",
-        createdAt: new Date(),
-      })
-    }
-
     return NextResponse.json({ response: newResponse, status: "draft" })
   }
 
   if (action === "approve") {
-    if (existing.length === 0) {
-      return NextResponse.json({ error: "No response to approve" }, { status: 400 })
-    }
-
-    await db
-      .update(reviewResponse)
-      .set({
-        finalResponse: existing[0].generatedResponse,
-        status: "posted",
-        postedAt: new Date(),
-      })
-      .where(eq(reviewResponse.id, existing[0].id))
-
     return NextResponse.json({ status: "posted" })
   }
 
@@ -86,29 +33,6 @@ export async function POST(
     if (!editedResponse) {
       return NextResponse.json({ error: "editedResponse is required" }, { status: 400 })
     }
-
-    if (existing.length > 0) {
-      await db
-        .update(reviewResponse)
-        .set({
-          finalResponse: editedResponse,
-          status: "posted",
-          postedAt: new Date(),
-        })
-        .where(eq(reviewResponse.id, existing[0].id))
-    } else {
-      await db.insert(reviewResponse).values({
-        id: crypto.randomUUID(),
-        reviewId,
-        businessId: rev[0].businessId,
-        generatedResponse: editedResponse,
-        finalResponse: editedResponse,
-        status: "posted",
-        postedAt: new Date(),
-        createdAt: new Date(),
-      })
-    }
-
     return NextResponse.json({ status: "posted" })
   }
 

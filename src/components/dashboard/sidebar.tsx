@@ -12,20 +12,70 @@ import {
   Link as LinkIcon,
   Copy,
   Check,
+  Megaphone,
+  Trophy,
+  DollarSign,
+  Users,
+  Heart,
+  Shield,
+  Share2,
+  Target,
+  Radio,
+  AlertTriangle,
+  Zap,
+  Code,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
-const navItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/reviews", label: "Reviews", icon: MessageSquare },
-  { href: "/dashboard/insights", label: "Insights", icon: BarChart3 },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+const navSections = [
+  {
+    label: "Main",
+    items: [
+      { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+      { href: "/dashboard/reviews", label: "Reviews", icon: MessageSquare },
+      { href: "/dashboard/insights", label: "Insights", icon: BarChart3 },
+      { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
+    ],
+  },
+  {
+    label: "Growth",
+    items: [
+      { href: "/dashboard/roi", label: "ROI & Impact", icon: DollarSign },
+      { href: "/dashboard/goals", label: "Goals", icon: Target },
+      { href: "/dashboard/marketing", label: "Marketing", icon: Share2 },
+      { href: "/dashboard/optimization", label: "Optimization", icon: Zap },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { href: "/dashboard/staff", label: "Staff", icon: Users },
+      { href: "/dashboard/competitors", label: "Competitors", icon: Trophy },
+      { href: "/dashboard/monitoring", label: "Monitoring", icon: Radio },
+      { href: "/dashboard/crisis", label: "Crisis", icon: AlertTriangle },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { href: "/dashboard/recovery", label: "Recovery", icon: Heart },
+      { href: "/dashboard/protection", label: "Protection", icon: Shield },
+      { href: "/dashboard/developers", label: "Developers", icon: Code },
+      { href: "/dashboard/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ]
 
-export function Sidebar({ businessSlug }: { businessSlug?: string }) {
+export function Sidebar({
+  businessSlug,
+  onNavigate,
+}: {
+  businessSlug?: string
+  onNavigate?: () => void
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const [copied, setCopied] = useState(false)
@@ -47,6 +97,10 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
   }
 
   function handleSignOut() {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("reviewforge_business")
+      localStorage.removeItem("reviewforge_settings")
+    }
     router.push("/login")
   }
 
@@ -55,7 +109,7 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-6 py-5 border-b border-[#b8dca8]">
         <div className="w-8 h-8 bg-[#1a3a2a] rounded-full flex items-center justify-center">
-          <span className="text-white font-bold text-sm font-serif">R</span>
+          <span className="text-white font-bold text-sm">R</span>
         </div>
         <span className="text-lg font-bold text-[#1a3a2a]">
           ReviewForge
@@ -78,6 +132,7 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
               variant="ghost"
               className="h-7 w-7 shrink-0"
               onClick={handleCopyLink}
+              aria-label="Copy review link"
             >
               {copied ? (
                 <Check className="h-3.5 w-3.5 text-[#2d6a4f]" />
@@ -90,28 +145,39 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-[#d4f0c0] text-[#1a3a2a]"
-                  : "text-[#4a7a5a] hover:bg-[#eef8e6] hover:text-[#1a3a2a]"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          )
-        })}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto" aria-label="Dashboard navigation">
+        {navSections.map((section) => (
+          <div key={section.label} className="mb-4">
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#b8dca8]">
+              {section.label}
+            </p>
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const isActive =
+                  item.href === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname.startsWith(item.href)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-[#d4f0c0] text-[#1a3a2a]"
+                        : "text-[#4a7a5a] hover:bg-[#eef8e6] hover:text-[#1a3a2a]"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Sign Out */}

@@ -56,14 +56,18 @@ const SENTIMENT_COLORS = {
 const SOURCE_COLORS = ["#2d6a4f", "#52b788", "#f0d040", "#95d5b2", "#1b4332"]
 
 export default function InsightsPage() {
-  const business = useBusinessContext()
+  const { business } = useBusinessContext()
   const [insights, setInsights] = useState<InsightsData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch(`/api/insights?businessId=${business.id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch")
+        return r.json()
+      })
       .then(setInsights)
+      .catch(() => setInsights(null))
       .finally(() => setLoading(false))
   }, [business.id])
 
@@ -79,16 +83,16 @@ export default function InsightsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Insights</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold text-[#1a3a2a]">Insights</h1>
+          <p className="text-[#5a6b5a]">
             Customer intelligence from your reviews
           </p>
         </div>
-        <Card>
+        <Card className="border-[#b8dca8]">
           <CardContent className="py-16 text-center">
-            <BarChart3 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-500">No data yet</p>
-            <p className="text-sm text-muted-foreground mt-1">
+            <BarChart3 className="h-12 w-12 mx-auto mb-3 text-[#b8dca8]" />
+            <p className="font-medium text-[#1a3a2a]">No data yet</p>
+            <p className="text-sm text-[#5a6b5a] mt-1">
               Insights will appear once you start collecting reviews
             </p>
           </CardContent>
@@ -191,9 +195,9 @@ export default function InsightsPage() {
                     innerRadius={60}
                     outerRadius={100}
                     dataKey="value"
-                    label={((props: any) =>
-                      `${props.name ?? ""} ${(((props.percent as number) ?? 0) * 100).toFixed(0)}%`
-                    ) as any}
+                    label={(props: { name?: string; percent?: number }) =>
+                      `${props.name ?? ""} ${((props.percent ?? 0) * 100).toFixed(0)}%`
+                    }
                   >
                     {sentimentData.map((entry, i) => (
                       <Cell key={i} fill={entry.fill} />

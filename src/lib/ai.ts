@@ -195,8 +195,8 @@ type ReviewContext = {
 
 const POSITIVE_OPENINGS = [
   (ctx: ReviewContext) => `Finally tried ${ctx.businessName} and wow, I've been missing out!`,
-  (ctx: ReviewContext) => `Just had the best experience at ${ctx.businessName}. Absolutely blown away.`,
-  (ctx: ReviewContext) => `${ctx.businessName} exceeded every expectation. So glad we came here.`,
+  (ctx: ReviewContext) => `Just had the best experience at ${ctx.businessName}. Seriously impressed.`,
+  (ctx: ReviewContext) => `${ctx.businessName} was even better than I'd hoped. So glad we came here.`,
   (ctx: ReviewContext) => `Can't say enough good things about ${ctx.businessName}.`,
   (ctx: ReviewContext) => `This was my first time at ${ctx.businessName} and it definitely won't be my last.`,
   (ctx: ReviewContext) => `${ctx.businessName} is the real deal. Not overhyped at all.`,
@@ -244,7 +244,7 @@ const FOOD_QUALITY_SENTENCES = [
     if (ctx.entities.dishes.length > 0) {
       return `The ${pickRandom(ctx.entities.dishes)} alone is worth the trip. Trust me on this one.`
     }
-    return "The menu is thoughtfully curated and everything we tried was a hit."
+    return "The menu is well thought out and everything we tried was a hit."
   },
 ]
 
@@ -261,13 +261,13 @@ const SERVICE_SENTENCES = [
       const person = pickRandom(ctx.entities.people)
       return `Shoutout to ${person} who took amazing care of us. Made great recommendations too.`
     }
-    return "Service was top-notch from the moment we walked in. Everyone was so welcoming."
+    return "Service was outstanding from the moment we walked in. Everyone was so welcoming."
   },
   (ctx: ReviewContext) => "The team here clearly loves what they do. You can feel it in how they treat you.",
   (ctx: ReviewContext) => "We were greeted warmly and the service stayed consistently great throughout our visit.",
   (ctx: ReviewContext) => {
     if (ctx.entities.people.length > 0) {
-      return `${pickRandom(ctx.entities.people)} went above and beyond for us. That kind of service is rare.`
+      return `${pickRandom(ctx.entities.people)} really took care of us. That kind of service is rare.`
     }
     return "Genuinely great service. They remembered our preferences and anticipated what we needed."
   },
@@ -526,8 +526,11 @@ export function generateReview(input: {
     parts.push(pickRandom(NEGATIVE_CLOSINGS))
   }
 
-  // Join with natural spacing - sometimes add line breaks for longer reviews
-  const generatedReview = parts.join(" ")
+  // Join with natural spacing
+  const rawReview = parts.join(" ")
+
+  // Apply content refinement framework
+  const generatedReview = applyContentFramework(rawReview)
 
   return {
     generatedReview,
@@ -650,7 +653,94 @@ export function generateResponse(input: {
     parts.push(pickRandom(RESPONSE_CLOSINGS_NEGATIVE)(ctx))
   }
 
-  return parts.join(" ")
+  return applyContentFramework(parts.join(" "))
 }
 
-export { detectTopics, detectSentiment, extractEntities }
+// ============ CONTENT REFINEMENT FRAMEWORK ============
+// 5-layer quality system to ensure generated content reads naturally
+// and avoids AI-sounding patterns
+
+const BANNED_WORDS_MAP: Record<string, string> = {
+  "unlock": "discover",
+  "unleash": "use",
+  "elevate": "improve",
+  "delve": "look into",
+  "tapestry": "mix",
+  "myriad": "many",
+  "beacon": "example",
+  "landscape": "space",
+  "realm": "area",
+  "testament": "proof",
+  "embark": "start",
+  "pinnacle": "peak",
+  "paradigm": "approach",
+  "nuance": "detail",
+  "foster": "build",
+  "robust": "strong",
+  "leverage": "use",
+  "plethora": "lots of",
+  "seamless": "smooth",
+  "thrive": "do well",
+  "endeavor": "effort",
+  "embody": "represent",
+  "resonate": "connect",
+  "exquisite": "excellent",
+  "bespoke": "custom",
+  "curated": "selected",
+  "impeccable": "excellent",
+  "artisanal": "handmade",
+  "luxurious": "comfortable",
+  "opulent": "fancy",
+  "meticulously": "carefully",
+  "transcend": "go beyond",
+  "unparalleled": "unmatched",
+  "discerning": "selective",
+  "captivating": "interesting",
+}
+
+const BANNED_PHRASES: [RegExp, string][] = [
+  [/above and beyond/gi, "really took care of us"],
+  [/blown away/gi, "seriously impressed"],
+  [/exceeded every expectation/gi, "better than I hoped"],
+  [/top.notch/gi, "outstanding"],
+  [/hidden gem/gi, "great find"],
+  [/game.changer/gi, "really stands out"],
+  [/world.class/gi, "really great"],
+  [/one.of.a.kind/gi, "unique"],
+  [/out of this world/gi, "incredible"],
+  [/second to none/gi, "the best around"],
+  [/to die for/gi, "absolutely delicious"],
+  [/Whether you're/gi, "If you're"],
+  [/In today's/gi, "Right now,"],
+  [/It's not just/gi, "It's"],
+  [/more than just/gi, "a great"],
+  [/at the end of the day/gi, "ultimately"],
+  [/takes it to the next level/gi, "makes it even better"],
+]
+
+function applyContentFramework(text: string): string {
+  let result = text
+
+  // Layer 1: Replace banned words
+  for (const [banned, replacement] of Object.entries(BANNED_WORDS_MAP)) {
+    const regex = new RegExp(`\\b${banned}\\b`, "gi")
+    result = result.replace(regex, replacement)
+  }
+
+  // Layer 2: Replace banned phrases
+  for (const [pattern, replacement] of BANNED_PHRASES) {
+    result = result.replace(pattern, replacement)
+  }
+
+  // Layer 3: Remove em-dashes (replace with periods or commas)
+  result = result.replace(/ — /g, ". ")
+  result = result.replace(/—/g, ", ")
+
+  // Layer 4: Fix double spaces and capitalize after periods
+  result = result.replace(/\s{2,}/g, " ")
+  result = result.replace(/\.\s+([a-z])/g, (_, letter) => `. ${letter.toUpperCase()}`)
+
+  return result.trim()
+}
+
+export { detectTopics, detectSentiment, extractEntities, applyContentFramework }

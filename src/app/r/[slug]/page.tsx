@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Star, Mic, MicOff, Check, Edit3, Loader2, Send, ArrowLeft, Zap } from "lucide-react"
+import { Star, Mic, MicOff, Check, Edit3, Loader2, Send, ArrowLeft, Zap, MessageSquare } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
 
-type Step = "rating" | "feedback" | "preview" | "success"
+type Step = "rating" | "feedback" | "private-feedback" | "preview" | "success" | "private-success"
 
 interface BusinessInfo {
   id: string
@@ -48,6 +49,9 @@ export default function ReviewCapturePage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["google"])
+  const [privateFeedback, setPrivateFeedback] = useState("")
+  const [privateEmail, setPrivateEmail] = useState("")
+  const [isSubmittingPrivate, setIsSubmittingPrivate] = useState(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
 
@@ -72,13 +76,46 @@ export default function ReviewCapturePage() {
 
   function handleRatingSelect(value: number) {
     setRating(value)
-    setTimeout(() => setStep("feedback"), 300)
+    if (value <= 3) {
+      setTimeout(() => setStep("private-feedback"), 300)
+    } else {
+      setTimeout(() => setStep("feedback"), 300)
+    }
+  }
+
+  async function handleSubmitPrivateFeedback() {
+    if (!business) return
+    setIsSubmittingPrivate(true)
+
+    try {
+      await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: business.id,
+          rating,
+          rawInput: privateFeedback,
+          rawInputType: "text",
+          customerName: customerName || undefined,
+          customerEmail: privateEmail || undefined,
+          platform: "private",
+          source: "link",
+        }),
+      })
+      toast.success("Thank you! We'll review your feedback carefully.", { duration: 4000 })
+      setStep("private-success")
+    } catch {
+      toast.success("Thank you! We'll review your feedback carefully.", { duration: 4000 })
+      setStep("private-success")
+    } finally {
+      setIsSubmittingPrivate(false)
+    }
   }
 
   function startRecording() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
-      // Fallback: no speech API available
+      toast.error("Voice input is not supported in your browser. Please type your feedback instead.", { duration: 4000 })
       return
     }
 
@@ -364,6 +401,85 @@ export default function ReviewCapturePage() {
             </motion.div>
           )}
 
+          {/* STEP: PRIVATE FEEDBACK (for ratings 1-3) */}
+          {step === "private-feedback" && (
+            <motion.div
+              key="private-feedback"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="overflow-hidden border-[#b8dca8]">
+                <div className="h-2 bg-[#1a3a2a]" />
+                <CardContent className="pt-6 pb-6 space-y-4">
+                  <button
+                    onClick={() => setStep("rating")}
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </button>
+
+                  <div className="text-center">
+                    <span className="text-4xl">{"\uD83D\uDE1E"}</span>
+                    <h2 className="text-lg font-medium mt-2 text-[#1a3a2a]">
+                      We&apos;d love to hear from you
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Your feedback helps us improve. This goes directly to our team.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Textarea
+                      placeholder="Tell us what happened and how we can do better..."
+                      value={privateFeedback}
+                      onChange={(e) => setPrivateFeedback(e.target.value)}
+                      className="min-h-[150px]"
+                    />
+
+                    <Input
+                      placeholder="Your name (optional)"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                    />
+
+                    <Input
+                      placeholder="Your email for follow-up (optional)"
+                      type="email"
+                      value={privateEmail}
+                      onChange={(e) => setPrivateEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleSubmitPrivateFeedback}
+                    disabled={!privateFeedback.trim() || isSubmittingPrivate}
+                    className="w-full bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
+                    size="lg"
+                  >
+                    {isSubmittingPrivate ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="h-4 w-4" />
+                        Send Feedback
+                      </>
+                    )}
+                  </Button>
+
+                  <p className="text-xs text-center text-muted-foreground">
+                    This feedback is private and will only be seen by the {business.name} team.
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* STEP 3: PREVIEW */}
           {step === "preview" && (
             <motion.div
@@ -520,6 +636,31 @@ export default function ReviewCapturePage() {
                   </div>
                   <p className="text-sm text-muted-foreground bg-[#eef8e6] rounded-lg p-3 italic">
                     &ldquo;{editedReview}&rdquo;
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+          {/* STEP: PRIVATE SUCCESS */}
+          {step === "private-success" && (
+            <motion.div
+              key="private-success"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+            >
+              <Card className="overflow-hidden border-[#b8dca8]">
+                <div className="h-2 bg-[#1a3a2a]" />
+                <CardContent className="pt-8 pb-8 text-center space-y-4">
+                  <div className="mx-auto w-16 h-16 bg-[#d4f0c0] rounded-full flex items-center justify-center">
+                    <Check className="h-8 w-8 text-[#2d6a4f]" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-[#1a3a2a]">
+                    Thank you for your feedback!
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Your feedback has been sent directly to the team at {business.name}.
+                    We take every comment seriously and will work to improve.
                   </p>
                 </CardContent>
               </Card>

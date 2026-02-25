@@ -1,392 +1,498 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { gsap } from "gsap"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
 import {
   Mic,
   Send,
   BarChart3,
   ArrowRight,
-  CheckCircle2,
   MessageSquare,
-  TrendingUp,
   Star,
   Zap,
   Shield,
   Globe,
   Check,
+  Sparkles,
+  TrendingUp,
+  Users,
+  Clock,
+  ChevronRight,
+  ArrowUpRight,
+  Play,
+  Quote,
 } from "lucide-react"
 
+gsap.registerPlugin(ScrollTrigger)
+
 export default function LandingPage() {
+  const mainRef = useRef<HTMLDivElement>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Hero entrance
+      const heroTl = gsap.timeline({ defaults: { ease: "power3.out" } })
+      heroTl
+        .from(".hero-badge", { y: 30, opacity: 0, duration: 0.8 })
+        .from(".hero-title-line", { y: 80, opacity: 0, duration: 1, stagger: 0.15 }, "-=0.4")
+        .from(".hero-subtitle", { y: 30, opacity: 0, duration: 0.8 }, "-=0.4")
+        .from(".hero-cta", { y: 30, opacity: 0, duration: 0.8, stagger: 0.1 }, "-=0.4")
+        .from(".hero-trust", { y: 20, opacity: 0, duration: 0.6 }, "-=0.3")
+        .from(".hero-visual", { y: 60, opacity: 0, scale: 0.95, duration: 1.2 }, "-=0.6")
+
+      // Floating shapes parallax
+      gsap.to(".float-shape-1", {
+        y: -60, rotation: 15,
+        scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom top", scrub: 1 },
+      })
+      gsap.to(".float-shape-2", {
+        y: -90, rotation: -20,
+        scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom top", scrub: 1 },
+      })
+      gsap.to(".float-shape-3", {
+        y: -40, rotation: 10,
+        scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom top", scrub: 1 },
+      })
+
+      // Stat cards
+      gsap.from(".stat-card", {
+        y: 60, opacity: 0, stagger: 0.15, duration: 0.8, ease: "back.out(1.7)",
+        scrollTrigger: { trigger: ".stats-section", start: "top 80%" },
+      })
+
+      // Problem section
+      gsap.from(".problem-left", {
+        x: -80, opacity: 0, duration: 1,
+        scrollTrigger: { trigger: ".problem-section", start: "top 75%" },
+      })
+      gsap.from(".problem-right", {
+        x: 80, opacity: 0, duration: 1,
+        scrollTrigger: { trigger: ".problem-section", start: "top 75%" },
+      })
+
+      // Steps stagger
+      gsap.from(".step-card", {
+        y: 80, opacity: 0, stagger: 0.2, duration: 0.8, ease: "power3.out",
+        scrollTrigger: { trigger: ".steps-section", start: "top 75%" },
+      })
+
+      // Demo
+      gsap.from(".demo-before", {
+        x: -60, opacity: 0, duration: 0.8,
+        scrollTrigger: { trigger: ".demo-section", start: "top 75%" },
+      })
+      gsap.from(".demo-after", {
+        x: 60, opacity: 0, duration: 0.8, delay: 0.2,
+        scrollTrigger: { trigger: ".demo-section", start: "top 75%" },
+      })
+
+      // Features
+      gsap.from(".feature-card", {
+        y: 60, opacity: 0, stagger: 0.12, duration: 0.7, ease: "power3.out",
+        scrollTrigger: { trigger: ".features-section", start: "top 75%" },
+      })
+
+      // Testimonials
+      gsap.from(".testimonial-card", {
+        y: 50, opacity: 0, stagger: 0.15, duration: 0.7,
+        scrollTrigger: { trigger: ".testimonials-section", start: "top 75%" },
+      })
+
+      // Pricing
+      gsap.from(".pricing-card", {
+        y: 80, opacity: 0, stagger: 0.12, duration: 0.8, ease: "back.out(1.4)",
+        scrollTrigger: { trigger: ".pricing-section", start: "top 75%" },
+      })
+
+      // CTA
+      gsap.from(".cta-content", {
+        y: 40, opacity: 0, duration: 1,
+        scrollTrigger: { trigger: ".cta-section", start: "top 80%" },
+      })
+
+      // Section headings
+      gsap.utils.toArray<HTMLElement>(".section-heading").forEach((el) => {
+        gsap.from(el, {
+          y: 50, opacity: 0, duration: 0.8,
+          scrollTrigger: { trigger: el, start: "top 85%" },
+        })
+      })
+
+      // Parallax blobs
+      gsap.utils.toArray<HTMLElement>(".parallax-bg").forEach((bg) => {
+        gsap.to(bg, {
+          y: -100,
+          scrollTrigger: { trigger: bg.parentElement, start: "top bottom", end: "bottom top", scrub: 1.5 },
+        })
+      })
+    }, mainRef)
+
+    return () => ctx.revert()
+  }, [])
+
+  const font = { fontFamily: "var(--font-display)" }
+
   return (
-    <div className="min-h-screen bg-[#eef8e6]">
-      {/* Navigation */}
-      <nav className="bg-[#eef8e6]/80 backdrop-blur-sm sticky top-0 z-50 border-b border-[#b8dca8]">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-[#1a3a2a] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg font-serif">R</span>
+    <div ref={mainRef} className="min-h-screen bg-[#FFF8F0] overflow-hidden">
+      {/* Skip to content */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:bg-[#1a2e1a] focus:text-[#FFF8F0] focus:px-4 focus:py-2 focus:rounded-full">
+        Skip to content
+      </a>
+
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FFF8F0]/90 backdrop-blur-md border-b border-[#1a2e1a]/5" role="navigation" aria-label="Main navigation">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#1a2e1a] rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm sm:text-lg" style={font}>R</span>
             </div>
-            <span className="text-xl font-bold text-[#1a3a2a]">
-              ReviewForge
-            </span>
+            <span className="text-lg sm:text-xl font-bold text-[#1a2e1a]" style={font}>ReviewForge</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" className="text-[#1a3a2a]" asChild>
-              <Link href="/login">Sign In</Link>
-            </Button>
-            <Button className="bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]" asChild>
-              <Link href="/register">Get Started Free</Link>
-            </Button>
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#features" className="text-sm font-medium text-[#1a2e1a]/70 hover:text-[#1a2e1a] transition-colors">Features</a>
+            <a href="#how-it-works" className="text-sm font-medium text-[#1a2e1a]/70 hover:text-[#1a2e1a] transition-colors">How it works</a>
+            <a href="#pricing" className="text-sm font-medium text-[#1a2e1a]/70 hover:text-[#1a2e1a] transition-colors">Pricing</a>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link href="/login" className="hidden sm:inline-flex text-sm font-medium text-[#1a2e1a] px-4 py-2">Sign In</Link>
+            <Link href="/register" className="hidden sm:inline-flex items-center gap-2 bg-[#1a2e1a] text-[#FFF8F0] px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-[#0f1f0f] transition-all border-2 border-[#1a2e1a]">
+              Get Started <ArrowRight className="h-4 w-4" />
+            </Link>
+            {/* Mobile menu button */}
+            <button
+              className="md:hidden p-2 rounded-lg hover:bg-[#1a2e1a]/5 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <div className="w-5 h-5 flex flex-col justify-center gap-1">
+                <span className={`block h-0.5 w-5 bg-[#1a2e1a] transition-all duration-200 ${mobileMenuOpen ? "rotate-45 translate-y-[3px]" : ""}`} />
+                <span className={`block h-0.5 w-5 bg-[#1a2e1a] transition-all duration-200 ${mobileMenuOpen ? "-rotate-45 -translate-y-[3px]" : ""}`} />
+              </div>
+            </button>
           </div>
         </div>
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-[#FFF8F0] border-t border-[#1a2e1a]/10 px-4 py-4 space-y-3">
+            <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-medium text-[#1a2e1a]/70 hover:text-[#1a2e1a] py-2">Features</a>
+            <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-medium text-[#1a2e1a]/70 hover:text-[#1a2e1a] py-2">How it works</a>
+            <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-medium text-[#1a2e1a]/70 hover:text-[#1a2e1a] py-2">Pricing</a>
+            <div className="flex gap-3 pt-2">
+              <Link href="/login" className="text-sm font-medium text-[#1a2e1a] px-4 py-2">Sign In</Link>
+              <Link href="/register" className="inline-flex items-center gap-2 bg-[#1a2e1a] text-[#FFF8F0] px-5 py-2.5 rounded-full text-sm font-semibold">
+                Get Started <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 py-20 md:py-28">
-          <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-[#d4f0c0] text-[#1a3a2a] px-4 py-1.5 rounded-full text-sm font-medium mb-6 border border-[#b8dca8]">
-              <Mic className="h-4 w-4" />
-              Voice-first review collection
+      {/* Hero */}
+      <section id="main-content" className="hero-section relative pt-28 pb-20 md:pt-40 md:pb-32">
+        <div className="float-shape-1 absolute top-32 left-[8%] w-20 h-20 bg-[#FFE566] rounded-full opacity-60" />
+        <div className="float-shape-2 absolute top-48 right-[10%] w-16 h-16 bg-[#FFB5B5] rounded-2xl opacity-60 rotate-12" />
+        <div className="float-shape-3 absolute bottom-40 left-[15%] w-12 h-12 bg-[#D4CCFF] rounded-xl opacity-60 -rotate-12" />
+        <div className="absolute top-64 right-[20%] w-8 h-8 bg-[#C8F5D4] rounded-full opacity-50" />
+        <div className="absolute bottom-60 right-[8%] w-14 h-14 bg-[#FFDAB5] rounded-2xl opacity-50 rotate-6" />
+
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center max-w-5xl mx-auto">
+            <div className="hero-badge inline-flex items-center gap-2 bg-[#C8F5D4] text-[#1a2e1a] px-5 py-2 rounded-full text-sm font-semibold mb-8 border-2 border-[#1a2e1a]">
+              <Sparkles className="h-4 w-4" /> AI-Powered Review Platform
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-[#1a3a2a] font-serif leading-tight">
-              TURN CUSTOMER{" "}
-              <span className="relative inline-block">
-                FEEDBACK
-                <span className="absolute bottom-0 left-0 w-full h-2 bg-[#f0d040] -z-10 translate-y-1" />
-              </span>{" "}
-              INTO REVENUE
+            <h1 className="mb-8" style={font}>
+              <span className="hero-title-line block text-5xl md:text-7xl lg:text-8xl font-bold text-[#1a2e1a] tracking-tight leading-[1.05]">TURN EVERY</span>
+              <span className="hero-title-line block text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[1.05]">
+                <span className="relative inline-block"><span className="relative z-10 text-[#1a2e1a]">HAPPY</span><span className="absolute bottom-1 md:bottom-2 left-0 w-full h-4 md:h-6 bg-[#FFE566] -z-0 rounded-sm" /></span>
+                {" "}<span className="text-[#1a2e1a]">CUSTOMER</span>
+              </span>
+              <span className="hero-title-line block text-5xl md:text-7xl lg:text-8xl font-bold text-[#1a2e1a] tracking-tight leading-[1.05]">
+                INTO A{" "}<span className="relative inline-block"><span className="relative z-10">5-STAR</span><span className="absolute bottom-1 md:bottom-2 left-0 w-full h-4 md:h-6 bg-[#C8F5D4] -z-0 rounded-sm" /></span>{" "}REVIEW
+              </span>
             </h1>
 
-            <p className="text-lg md:text-xl text-[#4a7a5a] mb-8 max-w-2xl mx-auto">
-              97% of your happy customers leave without writing a review.
-              ReviewForge captures their voice in 8 seconds and turns it into a
-              polished, platform-ready review they post with one tap.
+            <p className="hero-subtitle text-lg md:text-xl text-[#1a2e1a]/60 max-w-2xl mx-auto mb-10 leading-relaxed">
+              97% of happy customers leave without writing a review. ReviewForge captures their voice in 8 seconds and turns it into a polished, platform-ready review.
             </p>
 
-            <div className="flex items-center justify-center gap-4 flex-wrap">
-              <Button size="lg" className="bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6] px-8 py-6 text-base" asChild>
-                <Link href="/register">
-                  Start Collecting Reviews
-                  <ArrowRight className="h-4 w-4 ml-1" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="border-[#1a3a2a] text-[#1a3a2a] hover:bg-[#d4f0c0] px-8 py-6 text-base" asChild>
-                <Link href="#how-it-works">See How It Works</Link>
-              </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
+              <Link href="/register" className="hero-cta group inline-flex items-center gap-3 bg-[#1a2e1a] text-[#FFF8F0] px-8 py-4 rounded-full text-base font-bold hover:bg-[#0f1f0f] transition-all border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] hover:shadow-[2px_2px_0px_0px_#1a2e1a] hover:translate-x-[2px] hover:translate-y-[2px]">
+                Start Collecting Reviews <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <a href="#how-it-works" className="hero-cta inline-flex items-center gap-3 bg-[#FFF8F0] text-[#1a2e1a] px-8 py-4 rounded-full text-base font-bold border-2 border-[#1a2e1a] hover:bg-[#C8F5D4] transition-all shadow-[4px_4px_0px_0px_#1a2e1a] hover:shadow-[2px_2px_0px_0px_#1a2e1a] hover:translate-x-[2px] hover:translate-y-[2px]">
+                <Play className="h-5 w-5" /> See How It Works
+              </a>
             </div>
 
-            <div className="flex items-center justify-center gap-6 mt-10 text-sm text-[#4a7a5a] flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-[#2d6a4f]" />
-                No credit card required
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-[#2d6a4f]" />
-                Set up in 2 minutes
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-[#2d6a4f]" />
-                Works with Google, Yelp &amp; more
-              </div>
+            <div className="hero-trust flex flex-wrap items-center justify-center gap-6 text-sm text-[#1a2e1a]/50 font-medium">
+              <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#2d6a4f]" />No credit card needed</span>
+              <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#2d6a4f]" />2 min setup</span>
+              <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#2d6a4f]" />Google, Yelp &amp; more</span>
             </div>
           </div>
 
           {/* Dashboard Preview */}
-          <div className="mt-16 max-w-4xl mx-auto">
-            <div className="bg-[#1a3a2a] rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-3 h-3 rounded-full bg-red-400" />
-                <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                <div className="w-3 h-3 rounded-full bg-green-400" />
-                <span className="text-[#95d5b2] text-xs ml-2">ReviewForge Dashboard</span>
+          <div className="hero-visual mt-20 max-w-5xl mx-auto">
+            <div className="bg-[#1a2e1a] rounded-3xl p-6 md:p-8 border-2 border-[#1a2e1a] shadow-[8px_8px_0px_0px_rgba(26,46,26,0.3)]">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-3.5 h-3.5 rounded-full bg-[#FFB5B5]" />
+                <div className="w-3.5 h-3.5 rounded-full bg-[#FFE566]" />
+                <div className="w-3.5 h-3.5 rounded-full bg-[#C8F5D4]" />
+                <span className="text-[#C8F5D4]/60 text-xs ml-3 font-medium tracking-wider uppercase">ReviewForge Dashboard</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-[#2d6a4f] rounded-xl p-4">
-                  <p className="text-[#95d5b2] text-xs mb-1">Total Reviews</p>
-                  <p className="text-white text-2xl font-bold">847</p>
-                  <p className="text-[#52b788] text-xs mt-1">+23 this week</p>
-                </div>
-                <div className="bg-[#2d6a4f] rounded-xl p-4">
-                  <p className="text-[#95d5b2] text-xs mb-1">Avg Rating</p>
-                  <div className="flex items-center gap-1">
-                    <p className="text-white text-2xl font-bold">4.8</p>
-                    <Star className="h-4 w-4 text-[#f0d040] fill-[#f0d040]" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: "Total Reviews", value: "847", sub: "+23 this week", color: "#C8F5D4", icon: <TrendingUp className="h-3 w-3" /> },
+                  { label: "Avg Rating", value: "4.8", sub: "Up from 4.2", color: "#FFE566", icon: <Star className="h-5 w-5 text-[#1a2e1a] fill-[#1a2e1a]" /> },
+                  { label: "Response Rate", value: "100%", sub: "AI-powered", color: "#FFB5B5", icon: <Zap className="h-3 w-3" /> },
+                  { label: "Conversion", value: "52%", sub: "vs 3% industry", color: "#D4CCFF", icon: null },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-2xl p-5 border-2 border-[#1a2e1a]/10" style={{ backgroundColor: s.color }}>
+                    <p className="text-[#1a2e1a]/50 text-xs font-semibold uppercase tracking-wider mb-2">{s.label}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[#1a2e1a] text-3xl font-bold" style={font}>{s.value}</p>
+                      {s.icon}
+                    </div>
+                    <p className="text-[#1a2e1a]/60 text-xs font-medium mt-1 flex items-center gap-1">{s.sub}</p>
                   </div>
-                  <p className="text-[#52b788] text-xs mt-1">Up from 4.2</p>
-                </div>
-                <div className="bg-[#2d6a4f] rounded-xl p-4">
-                  <p className="text-[#95d5b2] text-xs mb-1">Response Rate</p>
-                  <p className="text-white text-2xl font-bold">100%</p>
-                  <p className="text-[#52b788] text-xs mt-1">AI-powered</p>
-                </div>
-                <div className="bg-[#2d6a4f] rounded-xl p-4">
-                  <p className="text-[#95d5b2] text-xs mb-1">Conversion</p>
-                  <p className="text-white text-2xl font-bold">52%</p>
-                  <p className="text-[#52b788] text-xs mt-1">vs 3% industry avg</p>
-                </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* The Problem */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold mb-4 text-[#1a3a2a] font-serif">
-              Your Online Reputation Is a Lie
-            </h2>
-            <p className="text-lg text-[#4a7a5a] max-w-2xl mx-auto">
-              Happy customers stay quiet. Angry ones write essays. The result:
-              your star rating reflects 3% of your actual customer experience.
-            </p>
+      {/* Marquee */}
+      <div className="bg-[#1a2e1a] py-4 border-y-2 border-[#1a2e1a] overflow-hidden">
+        <div className="flex animate-marquee whitespace-nowrap">
+          {[0, 1].map((i) => (
+            <div key={i} className="flex items-center gap-8 mr-8">
+              {["VOICE CAPTURE", "AI REVIEWS", "MULTI-PLATFORM", "SMART ANALYTICS", "AUTO-RESPOND", "SENTIMENT TRACKING", "ONE-TAP POSTING", "QR TRIGGERS"].map((t) => (
+                <span key={`${i}-${t}`} className="flex items-center gap-3">
+                  <Star className="h-4 w-4 text-[#FFE566] fill-[#FFE566]" />
+                  <span className="text-[#FFF8F0] text-sm font-bold tracking-widest uppercase" style={font}>{t}</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <section className="stats-section py-20 md:py-28 bg-[#FFF8F0]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { value: "17x", label: "More reviews collected", color: "#C8F5D4", icon: TrendingUp },
+              { value: "4.8", label: "Average star rating", color: "#FFE566", icon: Star },
+              { value: "8s", label: "Time to leave a review", color: "#FFB5B5", icon: Clock },
+              { value: "52%", label: "Customer conversion rate", color: "#D4CCFF", icon: Users },
+            ].map((stat) => (
+              <div key={stat.label} className="stat-card text-center p-8 rounded-3xl border-2 border-[#1a2e1a] bg-white shadow-[4px_4px_0px_0px_#1a2e1a] hover:shadow-[2px_2px_0px_0px_#1a2e1a] hover:translate-x-[2px] hover:translate-y-[2px] transition-all cursor-default">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-[#1a2e1a]" style={{ backgroundColor: stat.color }}>
+                  <stat.icon className="h-6 w-6 text-[#1a2e1a]" />
+                </div>
+                <p className="text-4xl md:text-5xl font-bold text-[#1a2e1a] mb-2" style={font}>{stat.value}</p>
+                <p className="text-sm text-[#1a2e1a]/50 font-medium">{stat.label}</p>
+              </div>
+            ))}
           </div>
+        </div>
+      </section>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <Card className="border-red-200 bg-red-50/50">
-              <CardContent className="pt-6">
-                <h3 className="font-semibold text-red-800 mb-4 flex items-center gap-2">
-                  <span className="text-red-500 text-xl">&#10005;</span>
-                  Without ReviewForge
-                </h3>
-                <div className="space-y-3 text-sm">
-                  <div className="pl-4 space-y-1.5 text-gray-600">
-                    <p>100 customers visit your business</p>
-                    <p>70 had a good experience <strong className="text-red-700">&#8594; 2 leave a review</strong></p>
-                    <p>10 had a bad experience <strong className="text-red-700">&#8594; 4 leave a review</strong></p>
-                  </div>
-                  <div className="border-t border-red-200 pt-3">
-                    <p className="font-medium text-red-800">
-                      Result: 6 reviews, 67% negative
-                    </p>
-                    <p className="text-gray-500 text-xs mt-1">
-                      Actual customer satisfaction: 70% happy
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-[#b8dca8] bg-[#eef8e6]/50">
-              <CardContent className="pt-6">
-                <h3 className="font-semibold text-[#1a3a2a] mb-4 flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-[#2d6a4f]" />
-                  With ReviewForge
-                </h3>
-                <div className="space-y-3 text-sm">
-                  <div className="pl-4 space-y-1.5 text-gray-600">
-                    <p>100 customers visit your business</p>
-                    <p>70 had a good experience <strong className="text-[#2d6a4f]">&#8594; 35 leave a review</strong></p>
-                    <p>10 had a bad experience &#8594; 4 leave a review</p>
-                  </div>
-                  <div className="border-t border-[#b8dca8] pt-3">
-                    <p className="font-medium text-[#1a3a2a]">
-                      Result: 44 reviews, 80% positive
-                    </p>
-                    <p className="text-[#4a7a5a] text-xs mt-1">
-                      Your reputation finally matches reality
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Problem */}
+      <section className="problem-section py-20 md:py-28 bg-[#C8F5D4] relative">
+        <div className="parallax-bg absolute inset-0 pointer-events-none">
+          <div className="absolute top-10 right-[15%] w-32 h-32 bg-[#FFE566]/30 rounded-full blur-2xl" />
+          <div className="absolute bottom-20 left-[10%] w-40 h-40 bg-[#D4CCFF]/30 rounded-full blur-2xl" />
+        </div>
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="section-heading text-center mb-16">
+            <span className="inline-flex items-center gap-2 bg-[#1a2e1a] text-[#FFF8F0] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6">The Problem</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-[#1a2e1a] mb-4" style={font}>YOUR ONLINE REPUTATION IS A LIE</h2>
+            <p className="text-lg text-[#1a2e1a]/60 max-w-2xl mx-auto">Happy customers stay quiet. Angry ones write essays. Your star rating reflects just 3% of your actual customer experience.</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <div className="problem-left bg-white rounded-3xl p-8 border-2 border-[#1a2e1a] shadow-[6px_6px_0px_0px_#1a2e1a]">
+              <div className="inline-flex items-center gap-2 bg-[#FFB5B5] text-[#1a2e1a] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6 border-2 border-[#1a2e1a]">Without ReviewForge</div>
+              <div className="space-y-4 text-[#1a2e1a]/70">
+                {["100 customers visit your business", "70 had a great experience \u2192 only 2 write a review", "10 unhappy customers \u2192 4 write angry reviews"].map((text, i) => (
+                  <p key={i} className="flex items-start gap-3"><span className="mt-1 w-6 h-6 rounded-full bg-[#FFB5B5] flex items-center justify-center shrink-0 border border-[#1a2e1a]/20 text-xs font-bold">{i + 1}</span>{text}</p>
+                ))}
+              </div>
+              <div className="mt-6 pt-6 border-t-2 border-[#1a2e1a]/10">
+                <p className="text-xl font-bold text-[#1a2e1a]" style={font}>Result: 6 reviews, 67% negative</p>
+                <p className="text-sm text-[#1a2e1a]/40 mt-1">Actual satisfaction: 70% happy</p>
+              </div>
+            </div>
+            <div className="problem-right bg-white rounded-3xl p-8 border-2 border-[#1a2e1a] shadow-[6px_6px_0px_0px_#1a2e1a]">
+              <div className="inline-flex items-center gap-2 bg-[#C8F5D4] text-[#1a2e1a] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6 border-2 border-[#1a2e1a]">With ReviewForge</div>
+              <div className="space-y-4 text-[#1a2e1a]/70">
+                {["100 customers visit your business", "70 had a great experience \u2192 35 leave a review", "10 unhappy \u2192 4 leave reviews (handled privately)"].map((text, i) => (
+                  <p key={i} className="flex items-start gap-3"><span className="mt-1 w-6 h-6 rounded-full bg-[#C8F5D4] flex items-center justify-center shrink-0 border border-[#1a2e1a]/20 text-xs font-bold">{i + 1}</span>{text}</p>
+                ))}
+              </div>
+              <div className="mt-6 pt-6 border-t-2 border-[#1a2e1a]/10">
+                <p className="text-xl font-bold text-[#2d6a4f]" style={font}>Result: 44 reviews, 80% positive</p>
+                <p className="text-sm text-[#1a2e1a]/40 mt-1">Your reputation finally matches reality</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-20 bg-[#eef8e6]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold mb-4 text-[#1a3a2a] font-serif">
-              8 Seconds From Thought to Posted Review
-            </h2>
-            <p className="text-lg text-[#4a7a5a] max-w-2xl mx-auto">
-              No app downloads. No account creation. No typing. Just speak and post.
-            </p>
+      <section className="steps-section py-20 md:py-28 bg-[#FFF8F0]" id="how-it-works">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="section-heading text-center mb-16">
+            <span className="inline-flex items-center gap-2 bg-[#FFE566] text-[#1a2e1a] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 border-2 border-[#1a2e1a]">How It Works</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-[#1a2e1a]" style={font}>8 SECONDS FROM THOUGHT TO POSTED REVIEW</h2>
+            <p className="text-lg text-[#1a2e1a]/50 max-w-xl mx-auto mt-4">No app downloads. No account creation. No typing. Just speak and post.</p>
           </div>
-
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-4 gap-6">
             {[
-              {
-                step: "1",
-                icon: MessageSquare,
-                title: "Customer taps link",
-                desc: "QR code on the table, text after checkout, or link on a receipt. Opens instantly in their browser.",
-              },
-              {
-                step: "2",
-                icon: Mic,
-                title: "Speak naturally",
-                desc: "\"The pasta was incredible and our server Jake made the night.\" Three seconds of talking.",
-              },
-              {
-                step: "3",
-                icon: Zap,
-                title: "AI writes the review",
-                desc: "Their words become a detailed, authentic review that mentions Jake and the pasta by name.",
-              },
-              {
-                step: "4",
-                icon: Send,
-                title: "One tap to post",
-                desc: "Review goes live on Google, Yelp, and Facebook. Customer is done before they finish their coffee.",
-              },
+              { step: "01", icon: MessageSquare, title: "Customer taps link", desc: "QR code, text, or receipt link. Opens instantly in browser.", color: "#C8F5D4" },
+              { step: "02", icon: Mic, title: "Speak naturally", desc: "\"The pasta was incredible and Jake was amazing.\" Just 3 seconds.", color: "#FFE566" },
+              { step: "03", icon: Zap, title: "AI writes the review", desc: "Their words become a detailed, authentic review that sounds real.", color: "#FFB5B5" },
+              { step: "04", icon: Send, title: "One tap to post", desc: "Goes live on Google, Yelp, and Facebook instantly.", color: "#D4CCFF" },
             ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="w-14 h-14 bg-[#d4f0c0] border border-[#b8dca8] rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <item.icon className="h-7 w-7 text-[#1a3a2a]" />
+              <div key={item.step} className="step-card">
+                <div className="bg-white rounded-3xl p-7 border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] hover:shadow-[2px_2px_0px_0px_#1a2e1a] hover:translate-x-[2px] hover:translate-y-[2px] transition-all h-full">
+                  <div className="flex items-center justify-between mb-6">
+                    <span className="text-3xl font-bold text-[#1a2e1a]/10" style={font}>{item.step}</span>
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center border-2 border-[#1a2e1a]" style={{ backgroundColor: item.color }}>
+                      <item.icon className="h-5 w-5 text-[#1a2e1a]" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-bold text-[#1a2e1a] mb-2" style={font}>{item.title}</h3>
+                  <p className="text-sm text-[#1a2e1a]/50 leading-relaxed">{item.desc}</p>
                 </div>
-                <div className="text-sm font-bold text-[#2d6a4f] mb-1">
-                  Step {item.step}
-                </div>
-                <h3 className="font-semibold mb-2 text-[#1a3a2a]">{item.title}</h3>
-                <p className="text-sm text-[#4a7a5a]">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* AI Demo */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4 text-[#1a3a2a] font-serif">
-              From Raw Voice to Ready Review
-            </h2>
-            <p className="text-lg text-[#4a7a5a]">
-              The AI keeps their personality. It just adds detail and polish.
-            </p>
-          </div>
-
-          <div className="max-w-3xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="border-[#b8dca8]">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Mic className="h-4 w-4 text-red-500" />
-                    <span className="text-sm font-medium text-[#4a7a5a]">
-                      Customer says:
-                    </span>
-                  </div>
-                  <p className="text-sm italic text-gray-600 bg-[#eef8e6] p-4 rounded-lg">
-                    &ldquo;Yeah it was great, food was really good and Jake our
-                    waiter was super nice&rdquo;
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-[#2d6a4f] bg-[#eef8e6]/50">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Zap className="h-4 w-4 text-[#2d6a4f]" />
-                    <span className="text-sm font-medium text-[#2d6a4f]">
-                      ReviewForge generates:
-                    </span>
-                  </div>
-                  <p className="text-sm bg-white p-4 rounded-lg border border-[#b8dca8]">
-                    &ldquo;Had an excellent dinner here last night. The food was
-                    genuinely impressive, and our waiter Jake went out of his way
-                    to make sure everything was perfect. Attentive without hovering.
-                    We&apos;ll be back soon.&rdquo;
-                  </p>
-                  <div className="flex gap-1 mt-3">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className="h-4 w-4 text-[#f0d040] fill-[#f0d040]"
-                      />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Marquee 2 */}
+      <div className="bg-[#FFE566] py-4 border-y-2 border-[#1a2e1a] overflow-hidden">
+        <div className="flex animate-marquee whitespace-nowrap" style={{ animationDirection: "reverse", animationDuration: "25s" }}>
+          {[0, 1].map((i) => (
+            <div key={i} className="flex items-center gap-8 mr-8">
+              {["TRUSTED BY 2,000+ BUSINESSES", "4.9 STAR RATING", "50,000+ REVIEWS GENERATED", "SETUP IN 2 MINUTES", "AI-POWERED MAGIC"].map((t) => (
+                <span key={`${i}-${t}`} className="flex items-center gap-3">
+                  <Sparkles className="h-4 w-4 text-[#1a2e1a]" />
+                  <span className="text-[#1a2e1a] text-sm font-bold tracking-widest uppercase" style={font}>{t}</span>
+                </span>
+              ))}
             </div>
+          ))}
+        </div>
+      </div>
 
-            <p className="text-center text-sm text-[#4a7a5a] mt-6">
-              Customer approves with one tap. The review goes live on Google instantly.
-            </p>
+      {/* AI Demo */}
+      <section className="demo-section py-20 md:py-28 bg-[#FFF8F0] relative">
+        <div className="parallax-bg absolute inset-0 pointer-events-none">
+          <div className="absolute top-20 left-[5%] w-24 h-24 bg-[#FFB5B5]/20 rounded-full blur-xl" />
+          <div className="absolute bottom-20 right-[8%] w-32 h-32 bg-[#C8F5D4]/20 rounded-full blur-xl" />
+        </div>
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="section-heading text-center mb-16">
+            <span className="inline-flex items-center gap-2 bg-[#D4CCFF] text-[#1a2e1a] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 border-2 border-[#1a2e1a]">AI Magic</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-[#1a2e1a]" style={font}>FROM RAW VOICE TO READY REVIEW</h2>
+            <p className="text-lg text-[#1a2e1a]/50 max-w-xl mx-auto mt-4">The AI keeps their personality. It just adds detail and polish.</p>
+          </div>
+          <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
+            <div className="demo-before bg-white rounded-3xl p-8 border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] h-full">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-[#FFB5B5] border-2 border-[#1a2e1a] flex items-center justify-center"><Mic className="h-5 w-5 text-[#1a2e1a]" /></div>
+                <div><p className="font-bold text-[#1a2e1a] text-sm" style={font}>CUSTOMER SAYS</p><p className="text-xs text-[#1a2e1a]/40">3 seconds of speaking</p></div>
+              </div>
+              <div className="bg-[#FFF8F0] rounded-2xl p-5 border-2 border-[#1a2e1a]/10">
+                <p className="text-[#1a2e1a]/70 italic leading-relaxed">&ldquo;Yeah it was great, food was really good and Jake our waiter was super nice&rdquo;</p>
+              </div>
+              <div className="flex gap-1 mt-4">
+                {[0, 1, 2].map((i) => <div key={i} className="h-1.5 flex-1 rounded-full bg-[#FFB5B5]" />)}
+                {[0, 1].map((i) => <div key={i} className="h-1.5 flex-1 rounded-full bg-[#1a2e1a]/10" />)}
+              </div>
+            </div>
+            <div className="demo-after bg-white rounded-3xl p-8 border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] h-full">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-[#C8F5D4] border-2 border-[#1a2e1a] flex items-center justify-center"><Sparkles className="h-5 w-5 text-[#1a2e1a]" /></div>
+                <div><p className="font-bold text-[#1a2e1a] text-sm" style={font}>REVIEWFORGE GENERATES</p><p className="text-xs text-[#1a2e1a]/40">Instant AI transformation</p></div>
+              </div>
+              <div className="bg-[#C8F5D4]/30 rounded-2xl p-5 border-2 border-[#2d6a4f]/20">
+                <p className="text-[#1a2e1a] leading-relaxed">&ldquo;Had an excellent dinner here last night. The food was genuinely impressive, and our waiter Jake went out of his way to make sure everything was perfect. Attentive without hovering. We&apos;ll be back soon.&rdquo;</p>
+              </div>
+              <div className="flex gap-1 mt-4">
+                {[0, 1, 2, 3, 4].map((i) => <Star key={i} className="h-5 w-5 text-[#FFE566] fill-[#FFE566]" />)}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="py-20 bg-[#eef8e6]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold mb-4 text-[#1a3a2a] font-serif">
-              Everything You Need to Own Your Reputation
-            </h2>
+      <section className="features-section py-20 md:py-28 bg-[#1a2e1a] relative overflow-hidden" id="features">
+        <div className="parallax-bg absolute inset-0 pointer-events-none">
+          <div className="absolute top-20 right-[10%] w-48 h-48 bg-[#C8F5D4]/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 left-[10%] w-56 h-56 bg-[#FFE566]/5 rounded-full blur-3xl" />
+        </div>
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="section-heading text-center mb-16">
+            <span className="inline-flex items-center gap-2 bg-[#C8F5D4] text-[#1a2e1a] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 border-2 border-[#1a2e1a]">Features</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-[#FFF8F0]" style={font}>EVERYTHING YOU NEED TO OWN YOUR REPUTATION</h2>
           </div>
-
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              {
-                icon: Mic,
-                title: "Voice-First Capture",
-                desc: "Customers speak for 3 seconds. The AI handles the rest. No typing, no friction, no app downloads.",
-              },
-              {
-                icon: Zap,
-                title: "AI Review Writer",
-                desc: "Turns casual speech into a detailed, authentic review that references specific people, dishes, and moments.",
-              },
-              {
-                icon: Globe,
-                title: "Multi-Platform Posting",
-                desc: "One review, every platform. Google, Yelp, Facebook, TripAdvisor. Posted with a single tap.",
-              },
-              {
-                icon: MessageSquare,
-                title: "AI Response Engine",
-                desc: "Every review gets a personalized reply within minutes. Approve with one click or let it run on autopilot.",
-              },
-              {
-                icon: BarChart3,
-                title: "Customer Intelligence",
-                desc: "See which topics your customers mention most, track sentiment shifts, and spot problems before they spread.",
-              },
-              {
-                icon: Shield,
-                title: "Smart Triggers",
-                desc: "Send review requests via SMS, QR code, NFC tap, email, or POS integration. Reach customers at the right moment.",
-              },
-            ].map((feature) => (
-              <Card key={feature.title} className="border-[#b8dca8] hover:shadow-md transition-shadow bg-white">
-                <CardContent className="pt-6">
-                  <div className="w-10 h-10 bg-[#d4f0c0] border border-[#b8dca8] rounded-lg flex items-center justify-center mb-4">
-                    <feature.icon className="h-5 w-5 text-[#1a3a2a]" />
+              { icon: Mic, title: "Voice-First Capture", desc: "Customers speak for 3 seconds. The AI handles the rest. No typing, no friction.", color: "#C8F5D4" },
+              { icon: Zap, title: "AI Review Writer", desc: "Turns casual speech into detailed, authentic reviews referencing specific details.", color: "#FFE566" },
+              { icon: Globe, title: "Multi-Platform Posting", desc: "One review, every platform. Google, Yelp, Facebook, TripAdvisor. One tap.", color: "#FFB5B5" },
+              { icon: MessageSquare, title: "AI Response Engine", desc: "Every review gets a personalized reply within minutes. Approve or go autopilot.", color: "#D4CCFF" },
+              { icon: BarChart3, title: "Customer Intelligence", desc: "Track topics, sentiment shifts, and spot problems before they become patterns.", color: "#FFDAB5" },
+              { icon: Shield, title: "Smart Triggers", desc: "SMS, QR code, NFC tap, email, or POS integration. Reach customers at the right moment.", color: "#C8F5D4" },
+            ].map((f) => (
+              <div key={f.title} className="feature-card">
+                <div className="bg-[#FFF8F0] rounded-3xl p-7 border-2 border-[#1a2e1a]/20 hover:border-[#FFF8F0] transition-all h-full">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 border-2 border-[#1a2e1a]" style={{ backgroundColor: f.color }}>
+                    <f.icon className="h-6 w-6 text-[#1a2e1a]" />
                   </div>
-                  <h3 className="font-semibold mb-2 text-[#1a3a2a]">{feature.title}</h3>
-                  <p className="text-sm text-[#4a7a5a]">
-                    {feature.desc}
-                  </p>
-                </CardContent>
-              </Card>
+                  <h3 className="text-lg font-bold text-[#1a2e1a] mb-2" style={font}>{f.title}</h3>
+                  <p className="text-sm text-[#1a2e1a]/50 leading-relaxed">{f.desc}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-20 bg-[#1a3a2a] text-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 text-center">
+      {/* Testimonials */}
+      <section className="testimonials-section py-20 md:py-28 bg-[#FFE566]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="section-heading text-center mb-16">
+            <span className="inline-flex items-center gap-2 bg-[#1a2e1a] text-[#FFF8F0] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6">Testimonials</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-[#1a2e1a]" style={font}>LOVED BY BUSINESS OWNERS EVERYWHERE</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
             {[
-              { value: "17x", label: "More reviews collected", icon: TrendingUp },
-              { value: "4.8", label: "Average star rating achieved", icon: Star },
-              { value: "8s", label: "Average time to leave a review", icon: Mic },
-              { value: "52%", label: "Customer conversion rate", icon: CheckCircle2 },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <stat.icon className="h-8 w-8 mx-auto mb-3 text-[#52b788]" />
-                <p className="text-4xl font-bold mb-1 text-[#e4f5d6]">{stat.value}</p>
-                <p className="text-sm text-[#95d5b2]">{stat.label}</p>
+              { quote: "We went from 12 reviews to 200+ in three months. Our Google rating jumped from 3.8 to 4.7. ReviewForge literally changed our business.", name: "Sarah Chen", role: "Owner, Sakura Bistro" },
+              { quote: "The voice capture is genius. Customers actually enjoy leaving reviews now. We get compliments about how easy it is.", name: "Marcus Rivera", role: "GM, Rivera Auto Group" },
+              { quote: "As a dentist, asking for reviews felt awkward. Now patients just scan a QR code in the waiting room and talk. Zero friction.", name: "Dr. Emily Park", role: "Park Family Dental" },
+            ].map((t) => (
+              <div key={t.name} className="testimonial-card">
+                <div className="bg-white rounded-3xl p-8 border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] h-full flex flex-col">
+                  <Quote className="h-8 w-8 text-[#FFE566] mb-4" />
+                  <p className="text-[#1a2e1a]/70 leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
+                  <div className="flex gap-1 mb-4">{[0, 1, 2, 3, 4].map((i) => <Star key={i} className="h-4 w-4 text-[#FFE566] fill-[#FFE566]" />)}</div>
+                  <div className="flex items-center gap-3 pt-4 border-t-2 border-[#1a2e1a]/10">
+                    <div className="w-10 h-10 rounded-full bg-[#C8F5D4] border-2 border-[#1a2e1a] flex items-center justify-center"><span className="text-sm font-bold text-[#1a2e1a]">{t.name[0]}</span></div>
+                    <div><p className="text-sm font-bold text-[#1a2e1a]">{t.name}</p><p className="text-xs text-[#1a2e1a]/40">{t.role}</p></div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -394,167 +500,114 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold mb-4 text-[#1a3a2a] font-serif">
-              Simple Pricing, Real Results
-            </h2>
-            <p className="text-lg text-[#4a7a5a]">
-              Start free. Upgrade when you see the reviews coming in.
-            </p>
+      <section className="pricing-section py-20 md:py-28 bg-[#FFF8F0]" id="pricing">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="section-heading text-center mb-16">
+            <span className="inline-flex items-center gap-2 bg-[#FFB5B5] text-[#1a2e1a] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 border-2 border-[#1a2e1a]">Pricing</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-[#1a2e1a]" style={font}>SIMPLE PRICING, REAL RESULTS</h2>
+            <p className="text-lg text-[#1a2e1a]/50 max-w-xl mx-auto mt-4">Start free. Upgrade when you see the reviews coming in.</p>
           </div>
-
-          <div className="grid md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {[
-              {
-                name: "Free",
-                price: "$0",
-                period: "forever",
-                desc: "Try it out with one location",
-                features: [
-                  "1 location",
-                  "25 reviews/month",
-                  "Basic AI generation",
-                  "Google posting",
-                  "Email support",
-                ],
-                cta: "Get Started",
-                highlight: false,
-              },
-              {
-                name: "Starter",
-                price: "$29",
-                period: "/month",
-                desc: "For businesses getting serious about reviews",
-                features: [
-                  "1 location",
-                  "100 reviews/month",
-                  "Voice capture",
-                  "Multi-platform posting",
-                  "AI response drafts",
-                  "Basic analytics",
-                ],
-                cta: "Start Free Trial",
-                highlight: false,
-              },
-              {
-                name: "Growth",
-                price: "$79",
-                period: "/month",
-                desc: "The most popular choice for growing businesses",
-                features: [
-                  "3 locations",
-                  "Unlimited reviews",
-                  "SMS + QR triggers",
-                  "AI auto-responses",
-                  "Full analytics suite",
-                  "Priority support",
-                ],
-                cta: "Start Free Trial",
-                highlight: true,
-              },
-              {
-                name: "Business",
-                price: "$199",
-                period: "/month",
-                desc: "For multi-location operations",
-                features: [
-                  "10 locations",
-                  "Unlimited everything",
-                  "White-label option",
-                  "API access",
-                  "Competitor tracking",
-                  "Dedicated account manager",
-                ],
-                cta: "Contact Sales",
-                highlight: false,
-              },
+              { name: "Free", price: "$0", period: "forever", features: ["1 location", "25 reviews/mo", "Basic AI", "Google posting", "Email support"], color: "#FFF8F0", highlight: false },
+              { name: "Starter", price: "$29", period: "/month", features: ["1 location", "100 reviews/mo", "Voice capture", "Multi-platform", "AI responses", "Basic analytics"], color: "#C8F5D4", highlight: false },
+              { name: "Growth", price: "$79", period: "/month", features: ["3 locations", "Unlimited reviews", "SMS + QR triggers", "AI auto-responses", "Full analytics", "Priority support"], color: "#FFE566", highlight: true },
+              { name: "Business", price: "$199", period: "/month", features: ["10 locations", "Everything unlimited", "White-label", "API access", "Competitor tracking", "Account manager"], color: "#D4CCFF", highlight: false },
             ].map((plan) => (
-              <Card
-                key={plan.name}
-                className={`relative ${
-                  plan.highlight
-                    ? "border-[#2d6a4f] border-2 shadow-lg"
-                    : "border-[#b8dca8]"
-                }`}
-              >
-                {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#f0d040] text-[#1a3a2a] text-xs font-bold px-3 py-1 rounded-full">
-                    MOST POPULAR
-                  </div>
-                )}
-                <CardContent className="pt-6">
-                  <h3 className="font-semibold text-[#1a3a2a]">{plan.name}</h3>
-                  <div className="mt-2 mb-1">
-                    <span className="text-3xl font-bold text-[#1a3a2a]">
-                      {plan.price}
-                    </span>
-                    <span className="text-sm text-[#4a7a5a]">
-                      {plan.period}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#4a7a5a] mb-4">{plan.desc}</p>
-                  <Button
-                    className={`w-full ${
-                      plan.highlight
-                        ? "bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
-                        : "bg-[#d4f0c0] hover:bg-[#b8dca8] text-[#1a3a2a]"
-                    }`}
-                    asChild
-                  >
-                    <Link href="/register">{plan.cta}</Link>
-                  </Button>
-                  <ul className="mt-4 space-y-2">
+              <div key={plan.name} className="pricing-card">
+                <div className={`rounded-3xl p-7 border-2 border-[#1a2e1a] h-full flex flex-col ${plan.highlight ? "shadow-[6px_6px_0px_0px_#1a2e1a] relative" : "shadow-[4px_4px_0px_0px_#1a2e1a]"}`} style={{ backgroundColor: plan.color }}>
+                  {plan.highlight && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#1a2e1a] text-[#FFE566] text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-widest whitespace-nowrap">Most Popular</div>}
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#1a2e1a]/50 mb-1" style={font}>{plan.name}</h3>
+                  <div className="mb-1"><span className="text-4xl font-bold text-[#1a2e1a]" style={font}>{plan.price}</span><span className="text-sm text-[#1a2e1a]/50 ml-1">{plan.period}</span></div>
+                  <Link href="/register" className="inline-flex items-center justify-center gap-2 bg-[#1a2e1a] text-[#FFF8F0] px-5 py-3 rounded-full text-sm font-bold hover:bg-[#0f1f0f] transition-all border-2 border-[#1a2e1a] mb-6 mt-4">
+                    Get Started <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  <ul className="space-y-3 flex-1">
                     {plan.features.map((f) => (
-                      <li
-                        key={f}
-                        className="text-sm text-[#4a7a5a] flex items-center gap-2"
-                      >
-                        <Check className="h-3.5 w-3.5 text-[#2d6a4f] shrink-0" />
-                        {f}
+                      <li key={f} className="text-sm text-[#1a2e1a]/60 flex items-center gap-2.5">
+                        <div className="w-5 h-5 rounded-full bg-[#1a2e1a]/10 flex items-center justify-center shrink-0"><Check className="h-3 w-3 text-[#1a2e1a]" /></div>{f}
                       </li>
                     ))}
                   </ul>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-[#1a3a2a]">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4 text-[#e4f5d6] font-serif">
-            Stop Losing Customers to a Bad Star Rating
-          </h2>
-          <p className="text-lg text-[#95d5b2] mb-8">
-            Every day without ReviewForge, dozens of happy customers leave your
-            business without saying a word online. Their silence costs you real
-            money. Start capturing their voice today.
-          </p>
-          <Button size="lg" className="bg-[#f0d040] hover:bg-[#e0c030] text-[#1a3a2a] font-semibold px-8 py-6 text-base" asChild>
-            <Link href="/register">
-              Get Started Free
-              <ArrowRight className="h-4 w-4 ml-1" />
+      <section className="cta-section py-20 md:py-28 bg-[#1a2e1a] relative overflow-hidden">
+        <div className="parallax-bg absolute inset-0 pointer-events-none">
+          <div className="absolute top-10 left-[10%] w-40 h-40 bg-[#C8F5D4]/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-[10%] w-48 h-48 bg-[#FFE566]/10 rounded-full blur-3xl" />
+        </div>
+        <div className="cta-content max-w-4xl mx-auto px-6 text-center relative z-10">
+          <div className="inline-flex items-center gap-2 bg-[#FFE566] text-[#1a2e1a] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-8 border-2 border-[#1a2e1a]">Ready to start?</div>
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold text-[#FFF8F0] mb-6 leading-tight" style={font}>STOP LOSING CUSTOMERS TO A BAD STAR RATING</h2>
+          <p className="text-lg text-[#FFF8F0]/50 mb-10 max-w-2xl mx-auto leading-relaxed">Every day without ReviewForge, dozens of happy customers leave your business without saying a word online. Their silence costs you real money.</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/register" className="group inline-flex items-center gap-3 bg-[#FFE566] text-[#1a2e1a] px-8 py-4 rounded-full text-base font-bold hover:bg-[#FFD700] transition-all border-2 border-[#FFE566] shadow-[4px_4px_0px_0px_rgba(255,229,102,0.3)]">
+              Get Started Free <ArrowUpRight className="h-5 w-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </Link>
-          </Button>
+            <Link href="/login" className="inline-flex items-center gap-2 text-[#FFF8F0]/60 hover:text-[#FFF8F0] transition-colors text-sm font-medium">Already have an account? <ArrowRight className="h-4 w-4" /></Link>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[#b8dca8] py-8 bg-[#eef8e6]">
-        <div className="max-w-6xl mx-auto px-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-[#1a3a2a] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm font-serif">R</span>
+      <footer className="bg-[#FFF8F0] border-t-2 border-[#1a2e1a] py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-[#1a2e1a] rounded-full flex items-center justify-center"><span className="text-white font-bold text-lg" style={font}>R</span></div>
+                <span className="text-xl font-bold text-[#1a2e1a]" style={font}>ReviewForge</span>
+              </div>
+              <p className="text-sm text-[#1a2e1a]/40 leading-relaxed">Your happy customers have a lot to say. We help them say it.</p>
             </div>
-            <span className="font-bold text-[#1a3a2a]">ReviewForge</span>
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-widest text-[#1a2e1a]/30 mb-4" style={font}>Product</h4>
+              <ul className="space-y-3">
+                {[
+                  { label: "Features", href: "/features" },
+                  { label: "Pricing", href: "/pricing" },
+                  { label: "Customers", href: "/customers" },
+                  { label: "Help Center", href: "/help" },
+                ].map((i) => <li key={i.label}><Link href={i.href} className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i.label}</Link></li>)}
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-widest text-[#1a2e1a]/30 mb-4" style={font}>Company</h4>
+              <ul className="space-y-3">
+                {[
+                  { label: "About", href: "/about" },
+                  { label: "Blog", href: "/blog" },
+                  { label: "Contact", href: "/contact" },
+                  { label: "Careers", href: "/about#careers" },
+                ].map((i) => <li key={i.label}><Link href={i.href} className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i.label}</Link></li>)}
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-widest text-[#1a2e1a]/30 mb-4" style={font}>Legal</h4>
+              <ul className="space-y-3">
+                {[
+                  { label: "Privacy Policy", href: "/privacy" },
+                  { label: "Terms of Service", href: "/terms" },
+                  { label: "Cookie Policy", href: "/cookies" },
+                  { label: "Acceptable Use", href: "/acceptable-use" },
+                  { label: "Security", href: "/security" },
+                  { label: "DPA", href: "/dpa" },
+                ].map((i) => <li key={i.label}><Link href={i.href} className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i.label}</Link></li>)}
+              </ul>
+            </div>
           </div>
-          <p className="text-sm text-[#4a7a5a]">
-            Your happy customers have a lot to say. We help them say it.
-          </p>
+          <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t-2 border-[#1a2e1a]/10 gap-4">
+            <p className="text-xs text-[#1a2e1a]/30">&copy; 2026 Schroeder Technologies. All rights reserved. ReviewForge is a registered trademark.</p>
+            <div className="flex items-center gap-6">
+              {["Twitter", "LinkedIn", "Instagram"].map((s) => <a key={s} href="#" className="text-xs text-[#1a2e1a]/30 hover:text-[#1a2e1a] transition-colors">{s}</a>)}
+            </div>
+          </div>
         </div>
       </footer>
     </div>
