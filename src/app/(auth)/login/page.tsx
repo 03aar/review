@@ -91,15 +91,18 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FFF8F0] p-4 relative overflow-hidden">
-      <div className="absolute top-20 left-[10%] w-32 h-32 bg-[#C8F5D4] rounded-full opacity-40 blur-xl" />
-      <div className="absolute bottom-20 right-[10%] w-40 h-40 bg-[#FFE566] rounded-full opacity-30 blur-xl" />
-      <div className="absolute top-1/2 right-[5%] w-16 h-16 bg-[#FFB5B5] rounded-2xl opacity-40 rotate-12" />
-      <div className="absolute bottom-1/3 left-[5%] w-12 h-12 bg-[#D4CCFF] rounded-xl opacity-40 -rotate-12" />
+      {/* Animated floating blobs */}
+      <div className="absolute top-20 left-[10%] w-32 h-32 bg-[#C8F5D4] opacity-40 blur-xl animate-blob" />
+      <div className="absolute bottom-20 right-[10%] w-40 h-40 bg-[#FFE566] opacity-30 blur-xl animate-blob" style={{ animationDelay: "-3s" }} />
+      <div className="absolute top-1/2 right-[5%] w-16 h-16 bg-[#FFB5B5] rounded-2xl opacity-40 animate-float-diagonal" />
+      <div className="absolute bottom-1/3 left-[5%] w-12 h-12 bg-[#D4CCFF] rounded-xl opacity-40 animate-float-reverse" />
+      <div className="absolute top-[15%] right-[25%] w-10 h-10 bg-[#FFDAB5] rounded-lg opacity-20 animate-spin-slow" />
+      <div className="absolute bottom-[15%] left-[25%] w-24 h-24 bg-[#C8F5D4] rounded-full opacity-15 blur-xl animate-pulse-glow" />
 
       <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5 mb-6" aria-label="ReviewForge home">
-            <div className="w-10 h-10 bg-[#1a2e1a] rounded-full flex items-center justify-center">
+        <div className="text-center mb-8 animate-slide-up">
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group" aria-label="ReviewForge home">
+            <div className="w-10 h-10 bg-[#1a2e1a] rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <span className="text-white font-bold text-lg" style={{ fontFamily: "var(--font-display)" }}>R</span>
             </div>
             <span className="text-xl font-bold text-[#1a2e1a]" style={{ fontFamily: "var(--font-display)" }}>ReviewForge</span>
@@ -110,7 +113,7 @@ function LoginForm() {
           <p className="text-[#1a2e1a]/50 text-sm mt-1">Sign in to manage your reviews</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-8 border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a]">
+        <div className="bg-white rounded-3xl p-8 border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] animate-scale-bounce opacity-0" style={{ animationDelay: "150ms", animationFillMode: "forwards" }}>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {errors.form && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl" role="alert">
@@ -202,7 +205,7 @@ function LoginForm() {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-1 text-xs text-[#1a2e1a]/30">
+        <div className="mt-6 flex items-center justify-center gap-1 text-xs text-[#1a2e1a]/30 animate-slide-up opacity-0" style={{ animationDelay: "400ms", animationFillMode: "forwards" }}>
           <Star className="h-3 w-3 fill-[#FFE566] text-[#FFE566]" />
           <span>Trusted by 2,000+ businesses</span>
         </div>

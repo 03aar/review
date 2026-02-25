@@ -131,8 +131,8 @@ export default function DashboardOverview() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-[#b8dca8]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 stagger-children">
+        <Card className="border-[#b8dca8] animate-scale-bounce opacity-0 hover:-translate-y-1 hover:shadow-lg transition-all" style={{ animationFillMode: "forwards" }}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -146,7 +146,7 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#b8dca8]">
+        <Card className="border-[#b8dca8] animate-scale-bounce opacity-0 hover:-translate-y-1 hover:shadow-lg transition-all" style={{ animationFillMode: "forwards" }}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -165,7 +165,7 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#b8dca8]">
+        <Card className="border-[#b8dca8] animate-scale-bounce opacity-0 hover:-translate-y-1 hover:shadow-lg transition-all" style={{ animationFillMode: "forwards" }}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -179,7 +179,7 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#b8dca8]">
+        <Card className="border-[#b8dca8] animate-scale-bounce opacity-0 hover:-translate-y-1 hover:shadow-lg transition-all" style={{ animationFillMode: "forwards" }}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -202,7 +202,7 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card className="border-[#b8dca8]">
+        <Card className="border-[#b8dca8] animate-scale-bounce opacity-0 hover:-translate-y-1 hover:shadow-lg transition-all" style={{ animationFillMode: "forwards" }}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -242,7 +242,7 @@ export default function DashboardOverview() {
 
       {/* Onboarding Checklist — shown when new user has no reviews */}
       {totalReviews === 0 && (
-        <Card className="border-[#2d6a4f]/30 bg-[#eef8e6]">
+        <Card className="border-[#2d6a4f]/30 bg-[#eef8e6] animate-slide-up opacity-0" style={{ animationDelay: "450ms", animationFillMode: "forwards" }}>
           <CardHeader>
             <CardTitle className="text-base text-[#1a3a2a] flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-[#2d6a4f]" />
@@ -304,7 +304,7 @@ export default function DashboardOverview() {
       )}
 
       {/* Needs Attention */}
-      <Card className="border-[#f59e0b]/30 bg-[#fffbeb]">
+      <Card className="border-[#f59e0b]/30 bg-[#fffbeb] animate-slide-up opacity-0" style={{ animationDelay: "500ms", animationFillMode: "forwards" }}>
         <CardHeader>
           <CardTitle className="text-base text-[#92400e] flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-[#f59e0b]" />
@@ -378,7 +378,7 @@ export default function DashboardOverview() {
 
       {/* Rating Distribution */}
       {insights && insights.totalReviews > 0 && (
-        <Card className="border-[#b8dca8]">
+        <Card className="border-[#b8dca8] animate-slide-up opacity-0" style={{ animationDelay: "600ms", animationFillMode: "forwards" }}>
           <CardHeader>
             <CardTitle className="text-base text-[#1a3a2a]">Rating Distribution</CardTitle>
           </CardHeader>
@@ -409,7 +409,7 @@ export default function DashboardOverview() {
       )}
 
       {/* Recent Reviews */}
-      <Card className="border-[#b8dca8]">
+      <Card className="border-[#b8dca8] animate-slide-up opacity-0" style={{ animationDelay: "700ms", animationFillMode: "forwards" }}>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base text-[#1a3a2a]">Recent Reviews</CardTitle>
           {reviews.length > 0 && (

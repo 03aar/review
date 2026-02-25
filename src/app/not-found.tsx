@@ -22,32 +22,34 @@ export default function NotFound() {
 
       {/* Content */}
       <main className="flex-1 flex items-center justify-center px-6 relative overflow-hidden">
-        {/* Floating shapes */}
-        <div className="absolute top-20 left-[10%] w-32 h-32 bg-[#FFE566] rounded-full opacity-20 blur-2xl" />
-        <div className="absolute bottom-20 right-[10%] w-40 h-40 bg-[#FFB5B5] rounded-full opacity-20 blur-2xl" />
-        <div className="absolute top-40 right-[20%] w-20 h-20 bg-[#D4CCFF] rounded-2xl opacity-30 rotate-12" />
-        <div className="absolute bottom-40 left-[15%] w-16 h-16 bg-[#C8F5D4] rounded-xl opacity-30 -rotate-12" />
+        {/* Animated floating blobs */}
+        <div className="absolute top-20 left-[10%] w-32 h-32 bg-[#FFE566] opacity-20 blur-2xl animate-blob" />
+        <div className="absolute bottom-20 right-[10%] w-40 h-40 bg-[#FFB5B5] opacity-20 blur-2xl animate-blob" style={{ animationDelay: "-2s" }} />
+        <div className="absolute top-40 right-[20%] w-20 h-20 bg-[#D4CCFF] rounded-2xl opacity-30 animate-float-diagonal" />
+        <div className="absolute bottom-40 left-[15%] w-16 h-16 bg-[#C8F5D4] rounded-xl opacity-30 animate-float-reverse" />
+        <div className="absolute top-[30%] left-[50%] w-24 h-24 bg-[#FFDAB5] rounded-full opacity-15 blur-xl animate-pulse-glow" />
+        <div className="absolute bottom-[20%] left-[30%] w-10 h-10 bg-[#D4CCFF] rounded-lg opacity-20 animate-spin-slow" />
 
         <div className="text-center max-w-2xl relative z-10">
           {/* Big 404 */}
           <div className="relative inline-block mb-8">
-            <span className="text-[8rem] sm:text-[12rem] md:text-[16rem] font-bold text-[#1a2e1a]/5 leading-none select-none" style={font}>404</span>
+            <span className="text-[8rem] sm:text-[12rem] md:text-[16rem] font-bold text-[#1a2e1a]/5 leading-none select-none animate-pulse-glow" style={font}>404</span>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="bg-[#FFE566] w-24 h-24 md:w-32 md:h-32 rounded-full border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] flex items-center justify-center">
+              <div className="bg-[#FFE566] w-24 h-24 md:w-32 md:h-32 rounded-full border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] flex items-center justify-center animate-float">
                 <Search className="h-10 w-10 md:h-14 md:w-14 text-[#1a2e1a]" />
               </div>
             </div>
           </div>
 
-          <h1 className="text-3xl md:text-5xl font-bold text-[#1a2e1a] mb-4" style={font}>
+          <h1 className="text-3xl md:text-5xl font-bold text-[#1a2e1a] mb-4 animate-slide-up" style={font}>
             PAGE NOT FOUND
           </h1>
-          <p className="text-lg text-[#1a2e1a]/50 mb-10 max-w-md mx-auto leading-relaxed">
+          <p className="text-lg text-[#1a2e1a]/50 mb-10 max-w-md mx-auto leading-relaxed animate-slide-up opacity-0" style={{ animationDelay: "150ms", animationFillMode: "forwards" }}>
             Looks like this page took a vacation. Let&apos;s get you back on track.
           </p>
 
           {/* Action buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 animate-slide-up opacity-0" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
             <Link
               href="/"
               className="inline-flex items-center gap-2 bg-[#1a2e1a] text-[#FFF8F0] px-8 py-4 rounded-full text-sm font-bold border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] hover:shadow-[2px_2px_0px_0px_#1a2e1a] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
@@ -62,8 +64,8 @@ export default function NotFound() {
             </button>
           </div>
 
-          {/* Helpful links */}
-          <div className="grid sm:grid-cols-3 gap-4 max-w-lg mx-auto">
+          {/* Helpful links — staggered entrance */}
+          <div className="grid sm:grid-cols-3 gap-4 max-w-lg mx-auto stagger-children">
             {[
               { icon: Home, label: "Homepage", href: "/", color: "#C8F5D4" },
               { icon: HelpCircle, label: "Help Center", href: "/help", color: "#FFE566" },
@@ -72,10 +74,11 @@ export default function NotFound() {
               <Link
                 key={link.label}
                 href={link.href}
-                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-[#1a2e1a]/10 hover:border-[#1a2e1a] transition-all group"
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-[#1a2e1a]/10 hover:border-[#1a2e1a] hover:-translate-y-1 hover:shadow-lg transition-all group animate-scale-bounce opacity-0"
+                style={{ animationFillMode: "forwards" }}
               >
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-[#1a2e1a]/20 group-hover:border-[#1a2e1a] transition-all"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-[#1a2e1a]/20 group-hover:border-[#1a2e1a] group-hover:scale-110 transition-all"
                   style={{ backgroundColor: link.color }}
                 >
                   <link.icon className="h-5 w-5 text-[#1a2e1a]" />
