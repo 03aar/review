@@ -25,7 +25,13 @@ const navItems = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 
-export function Sidebar({ businessSlug }: { businessSlug?: string }) {
+export function Sidebar({
+  businessSlug,
+  onNavigate,
+}: {
+  businessSlug?: string
+  onNavigate?: () => void
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const [copied, setCopied] = useState(false)
@@ -47,6 +53,10 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
   }
 
   function handleSignOut() {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("reviewforge_business")
+      localStorage.removeItem("reviewforge_settings")
+    }
     router.push("/login")
   }
 
@@ -55,7 +65,7 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-6 py-5 border-b border-[#b8dca8]">
         <div className="w-8 h-8 bg-[#1a3a2a] rounded-full flex items-center justify-center">
-          <span className="text-white font-bold text-sm font-serif">R</span>
+          <span className="text-white font-bold text-sm">R</span>
         </div>
         <span className="text-lg font-bold text-[#1a3a2a]">
           ReviewForge
@@ -78,6 +88,7 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
               variant="ghost"
               className="h-7 w-7 shrink-0"
               onClick={handleCopyLink}
+              aria-label="Copy review link"
             >
               {copied ? (
                 <Check className="h-3.5 w-3.5 text-[#2d6a4f]" />
@@ -90,7 +101,7 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Dashboard navigation">
         {navItems.map((item) => {
           const isActive =
             item.href === "/dashboard"
@@ -100,6 +111,8 @@ export function Sidebar({ businessSlug }: { businessSlug?: string }) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 isActive

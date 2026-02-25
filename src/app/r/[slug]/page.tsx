@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Star, Mic, MicOff, Check, Edit3, Loader2, Send, ArrowLeft, Zap } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
 
 type Step = "rating" | "feedback" | "preview" | "success"
 
@@ -78,7 +79,7 @@ export default function ReviewCapturePage() {
   function startRecording() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
-      // Fallback: no speech API available
+      toast.error("Voice input is not supported in your browser. Please type your feedback instead.", { duration: 4000 })
       return
     }
 

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { useBusinessContext } from "./layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star, TrendingUp, MessageSquare, ThumbsUp, Clock } from "lucide-react"
+import { Star, TrendingUp, MessageSquare, ThumbsUp, Clock, ExternalLink, Link as LinkIcon } from "lucide-react"
+import Link from "next/link"
 import { timeAgo } from "@/lib/utils"
 
 interface ReviewData {
@@ -26,20 +27,28 @@ interface InsightsData {
 }
 
 export default function DashboardOverview() {
-  const business = useBusinessContext()
+  const { business } = useBusinessContext()
   const [reviews, setReviews] = useState<ReviewData[]>([])
   const [insights, setInsights] = useState<InsightsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/reviews?businessId=${business.id}`).then((r) => r.json()),
-      fetch(`/api/insights?businessId=${business.id}`).then((r) => r.json()),
+      fetch(`/api/reviews?businessId=${business.id}`).then((r) => {
+        if (!r.ok) throw new Error()
+        return r.json()
+      }),
+      fetch(`/api/insights?businessId=${business.id}`).then((r) => {
+        if (!r.ok) throw new Error()
+        return r.json()
+      }),
     ])
       .then(([revs, ins]) => {
         setReviews(Array.isArray(revs) ? revs : [])
         setInsights(ins)
       })
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [business.id])
 
@@ -184,17 +193,26 @@ export default function DashboardOverview() {
 
       {/* Recent Reviews */}
       <Card className="border-[#b8dca8]">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base text-[#1a3a2a]">Recent Reviews</CardTitle>
+          {reviews.length > 0 && (
+            <Link href="/dashboard/reviews" className="text-xs text-[#2d6a4f] hover:underline flex items-center gap-1">
+              View all <ExternalLink className="h-3 w-3" />
+            </Link>
+          )}
         </CardHeader>
         <CardContent>
           {recentReviews.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No reviews yet</p>
-              <p className="text-sm mt-1">
+            <div className="text-center py-8">
+              <MessageSquare className="h-10 w-10 mx-auto mb-3 text-[#b8dca8]" />
+              <p className="font-medium text-[#1a3a2a]">No reviews yet</p>
+              <p className="text-sm mt-1 text-[#5a6b5a]">
                 Share your review link to start collecting feedback
               </p>
+              <div className="mt-3 flex items-center justify-center gap-2 text-sm text-[#2d6a4f]">
+                <LinkIcon className="h-4 w-4" />
+                <code className="bg-[#eef8e6] px-2 py-1 rounded">/r/{business.slug}</code>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
