@@ -52,11 +52,18 @@ const searchItems: SearchItem[] = [
   { label: "Settings", href: "/dashboard/settings", icon: Settings, category: "System", keywords: ["settings", "profile", "billing", "notifications", "security"] },
 ]
 
-const quickActions = [
-  { label: "Send review request", category: "Actions", keywords: ["send", "request", "review"] },
-  { label: "Generate QR code", category: "Actions", keywords: ["qr", "code", "generate", "print"] },
-  { label: "View recent reviews", category: "Actions", keywords: ["recent", "latest", "new"] },
-  { label: "Export data", category: "Actions", keywords: ["export", "download", "csv"] },
+interface QuickAction {
+  label: string
+  category: string
+  keywords: string[]
+  href: string
+}
+
+const quickActions: QuickAction[] = [
+  { label: "Send review request", category: "Actions", keywords: ["send", "request", "review"], href: "/dashboard/campaigns" },
+  { label: "Generate QR code", category: "Actions", keywords: ["qr", "code", "generate", "print"], href: "/dashboard/settings" },
+  { label: "View recent reviews", category: "Actions", keywords: ["recent", "latest", "new"], href: "/dashboard/reviews" },
+  { label: "Export data", category: "Actions", keywords: ["export", "download", "csv"], href: "/dashboard/reviews" },
 ]
 
 export function SearchCommand() {
@@ -119,7 +126,7 @@ export function SearchCommand() {
         e.preventDefault()
         const selected = allResults[selectedIndex]
         if (selected && "href" in selected) {
-          router.push((selected as SearchItem).href)
+          router.push(selected.href)
           setOpen(false)
         }
       }
@@ -212,6 +219,10 @@ export function SearchCommand() {
                       return (
                         <button
                           key={action.label}
+                          onClick={() => {
+                            router.push(action.href)
+                            setOpen(false)
+                          }}
                           className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
                             idx === selectedIndex
                               ? "bg-[#d4f0c0] text-[#1a3a2a]"
@@ -220,6 +231,7 @@ export function SearchCommand() {
                         >
                           <Star className="h-4 w-4" />
                           <span className="flex-1 text-left">{action.label}</span>
+                          <ArrowRight className="h-3 w-3 opacity-30" />
                         </button>
                       )
                     })}

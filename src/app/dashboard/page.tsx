@@ -4,11 +4,11 @@ import { useEffect, useState } from "react"
 import { useBusinessContext } from "./layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star, TrendingUp, MessageSquare, ThumbsUp, Clock, ExternalLink, Link as LinkIcon, Shield, AlertTriangle } from "lucide-react"
+import { Star, TrendingUp, MessageSquare, ThumbsUp, Clock, ExternalLink, Link as LinkIcon, Shield, AlertTriangle, Copy, CheckCircle2, Circle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
 import { timeAgo } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface ReviewData {
   id: string
@@ -38,7 +38,7 @@ export default function DashboardOverview() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/reviews?businessId=${business.id}`).then((r) => {
+      fetch(`/api/reviews?businessId=${business.id}&pageSize=50`).then((r) => {
         if (!r.ok) throw new Error()
         return r.json()
       }),
@@ -48,7 +48,9 @@ export default function DashboardOverview() {
       }),
     ])
       .then(([revs, ins]) => {
-        setReviews(Array.isArray(revs) ? revs : [])
+        // API returns { data: [...], pagination: {...} }
+        const reviewList = revs?.data ?? (Array.isArray(revs) ? revs : [])
+        setReviews(reviewList)
         setInsights(ins)
       })
       .catch(() => setError(true))
@@ -69,6 +71,27 @@ export default function DashboardOverview() {
             </Card>
           ))}
         </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold text-[#1a3a2a]">Dashboard</h1>
+        <Card className="border-[#b8dca8]">
+          <CardContent className="pt-6 text-center py-12">
+            <p className="text-[#1a3a2a] font-medium">Failed to load dashboard data</p>
+            <p className="text-sm text-muted-foreground mt-1">Please try refreshing the page.</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -217,6 +240,69 @@ export default function DashboardOverview() {
         </Card>
       </div>
 
+      {/* Onboarding Checklist — shown when new user has no reviews */}
+      {totalReviews === 0 && (
+        <Card className="border-[#2d6a4f]/30 bg-[#eef8e6]">
+          <CardHeader>
+            <CardTitle className="text-base text-[#1a3a2a] flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-[#2d6a4f]" />
+              Get started in 3 steps
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-[#b8dca8]">
+              <div className="shrink-0 mt-0.5">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#2d6a4f] text-white text-xs font-bold">1</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#1a3a2a]">Copy your review link</p>
+                <p className="text-xs text-[#5a6b5a] mt-0.5">Share this link with customers to collect reviews</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <code className="text-xs bg-[#eef8e6] px-2 py-1 rounded border border-[#b8dca8] text-[#2d6a4f]">
+                    {typeof window !== "undefined" ? window.location.origin : ""}/r/{business.slug}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1 text-xs border-[#b8dca8]"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/r/${business.slug}`)
+                      toast.success("Review link copied!")
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-[#b8dca8]">
+              <div className="shrink-0 mt-0.5">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#2d6a4f] text-white text-xs font-bold">2</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#1a3a2a]">Send it to a customer</p>
+                <p className="text-xs text-[#5a6b5a] mt-0.5">Email, text, or add it to a receipt — however you reach customers</p>
+                <Link href="/dashboard/campaigns">
+                  <Button size="sm" variant="outline" className="mt-2 h-7 text-xs border-[#b8dca8]">
+                    Send review requests
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg border border-[#b8dca8] border-dashed">
+              <div className="shrink-0 mt-0.5">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#b8dca8] text-white text-xs font-bold">3</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#5a6b5a]">Watch reviews roll in</p>
+                <p className="text-xs text-[#5a6b5a] mt-0.5">AI will polish each review and you can respond from your dashboard</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Needs Attention */}
       <Card className="border-[#f59e0b]/30 bg-[#fffbeb]">
         <CardHeader>
@@ -272,14 +358,15 @@ export default function DashboardOverview() {
                       {r.finalReview || r.generatedReview}
                     </p>
                     <div className="mt-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs border-[#f59e0b]/40 text-[#92400e] hover:bg-[#fef3c7]"
-                        onClick={() => toast.success("Auto-response queued for " + (r.customerName || "Anonymous"))}
-                      >
-                        Auto-respond
-                      </Button>
+                      <Link href="/dashboard/reviews">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs border-[#f59e0b]/40 text-[#92400e] hover:bg-[#fef3c7]"
+                        >
+                          View & Respond
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </div>

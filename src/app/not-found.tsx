@@ -31,7 +31,7 @@ export default function NotFound() {
         <div className="text-center max-w-2xl relative z-10">
           {/* Big 404 */}
           <div className="relative inline-block mb-8">
-            <span className="text-[12rem] md:text-[16rem] font-bold text-[#1a2e1a]/5 leading-none select-none" style={font}>404</span>
+            <span className="text-[8rem] sm:text-[12rem] md:text-[16rem] font-bold text-[#1a2e1a]/5 leading-none select-none" style={font}>404</span>
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-[#FFE566] w-24 h-24 md:w-32 md:h-32 rounded-full border-2 border-[#1a2e1a] shadow-[4px_4px_0px_0px_#1a2e1a] flex items-center justify-center">
                 <Search className="h-10 w-10 md:h-14 md:w-14 text-[#1a2e1a]" />

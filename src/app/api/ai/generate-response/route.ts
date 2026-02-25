@@ -1,31 +1,33 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateResponse } from "@/lib/ai"
+import { generateResponseSchema, parseBody } from "@/lib/validators"
+import { sanitizeText } from "@/lib/sanitize"
+import { applyRateLimit, aiLimiter } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
-  let body
+  const limited = applyRateLimit(req, aiLimiter, "ai-response")
+  if (limited) return limited
+
+  let body: unknown
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { review, rating, businessName, customerName } = body
-
-  if (!review || !rating || !businessName) {
-    return NextResponse.json(
-      { error: "review, rating, and businessName are required" },
-      { status: 400 }
-    )
+  const parsed = parseBody(generateResponseSchema, body)
+  if (parsed.error) {
+    return NextResponse.json({ error: parsed.error.message }, { status: 400 })
   }
+
+  const { review, rating, businessName, customerName, businessCategory } = parsed.data
 
   const response = generateResponse({
-    review: String(review).slice(0, 5000),
-    rating: Number(rating),
-    businessName: String(businessName).slice(0, 200),
-    customerName: customerName ? String(customerName).slice(0, 100) : undefined,
+    review: sanitizeText(review, 5000),
+    rating,
+    businessName: sanitizeText(businessName, 200),
+    customerName: customerName ? sanitizeText(customerName, 100) : undefined,
+    businessCategory,
   })
 
   return NextResponse.json({ response })

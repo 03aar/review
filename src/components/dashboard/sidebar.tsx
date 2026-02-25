@@ -72,9 +72,11 @@ const navSections = [
 export function Sidebar({
   businessSlug,
   onNavigate,
+  onSignOut,
 }: {
   businessSlug?: string
   onNavigate?: () => void
+  onSignOut?: () => void
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -97,11 +99,11 @@ export function Sidebar({
   }
 
   function handleSignOut() {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("reviewforge_business")
-      localStorage.removeItem("reviewforge_settings")
+    if (onSignOut) {
+      onSignOut()
+    } else {
+      router.push("/login")
     }
-    router.push("/login")
   }
 
   return (
@@ -164,10 +166,10 @@ export function Sidebar({
                     onClick={onNavigate}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                      "flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors border-l-[3px]",
                       isActive
-                        ? "bg-[#d4f0c0] text-[#1a3a2a]"
-                        : "text-[#4a7a5a] hover:bg-[#eef8e6] hover:text-[#1a3a2a]"
+                        ? "bg-[#d4f0c0] text-[#1a3a2a] font-semibold border-[#2d6a4f]"
+                        : "text-[#4a7a5a] hover:bg-[#eef8e6] hover:text-[#1a3a2a] font-medium border-transparent"
                     )}
                   >
                     <item.icon className="h-4 w-4" />

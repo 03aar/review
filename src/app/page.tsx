@@ -243,7 +243,7 @@ export default function LandingPage() {
                 <div className="w-3.5 h-3.5 rounded-full bg-[#FFB5B5]" />
                 <div className="w-3.5 h-3.5 rounded-full bg-[#FFE566]" />
                 <div className="w-3.5 h-3.5 rounded-full bg-[#C8F5D4]" />
-                <span className="text-[#C8F5D4]/60 text-xs ml-3 font-medium tracking-wider uppercase">ReviewForge Dashboard</span>
+                <span className="text-[#C8F5D4]/60 text-xs ml-3 font-medium tracking-wider uppercase">Dashboard Preview — Example Data</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
@@ -584,7 +584,7 @@ export default function LandingPage() {
                   { label: "About", href: "/about" },
                   { label: "Blog", href: "/blog" },
                   { label: "Contact", href: "/contact" },
-                  { label: "Careers", href: "/about#careers" },
+                  { label: "Careers", href: "/about" },
                 ].map((i) => <li key={i.label}><Link href={i.href} className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i.label}</Link></li>)}
               </ul>
             </div>
@@ -605,7 +605,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t-2 border-[#1a2e1a]/10 gap-4">
             <p className="text-xs text-[#1a2e1a]/30">&copy; 2026 Schroeder Technologies. All rights reserved. ReviewForge is a registered trademark.</p>
             <div className="flex items-center gap-6">
-              {["Twitter", "LinkedIn", "Instagram"].map((s) => <a key={s} href="#" className="text-xs text-[#1a2e1a]/30 hover:text-[#1a2e1a] transition-colors">{s}</a>)}
+              {["Twitter", "LinkedIn", "Instagram"].map((s) => <span key={s} className="text-xs text-[#1a2e1a]/30">{s}</span>)}
             </div>
           </div>
         </div>

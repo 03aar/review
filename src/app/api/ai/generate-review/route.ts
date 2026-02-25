@@ -1,38 +1,31 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateReview } from "@/lib/ai"
+import { generateReviewSchema, parseBody } from "@/lib/validators"
+import { sanitizeText } from "@/lib/sanitize"
+import { applyRateLimit, aiLimiter } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
-  let body
+  const limited = applyRateLimit(req, aiLimiter, "ai-review")
+  if (limited) return limited
+
+  let body: unknown
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { rawInput, rating, businessName, businessCategory } = body
-
-  if (!rawInput || !rating || !businessName) {
-    return NextResponse.json(
-      { error: "rawInput, rating, and businessName are required" },
-      { status: 400 }
-    )
+  const parsed = parseBody(generateReviewSchema, body)
+  if (parsed.error) {
+    return NextResponse.json({ error: parsed.error.message }, { status: 400 })
   }
 
-  const numRating = Number(rating)
-  if (numRating < 1 || numRating > 5 || !Number.isInteger(numRating)) {
-    return NextResponse.json(
-      { error: "rating must be an integer between 1 and 5" },
-      { status: 400 }
-    )
-  }
+  const { rawInput, rating, businessName, businessCategory } = parsed.data
 
   const result = generateReview({
-    rawInput: String(rawInput).slice(0, 5000),
-    rating: numRating,
-    businessName: String(businessName).slice(0, 200),
+    rawInput: sanitizeText(rawInput, 5000),
+    rating,
+    businessName: sanitizeText(businessName, 200),
     businessCategory,
   })
 

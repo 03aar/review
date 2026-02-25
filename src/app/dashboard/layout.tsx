@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState, useCallback, createContext, useContext } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { SearchCommand, SearchTrigger } from "@/components/dashboard/search-command"
 import { NotificationCenter } from "@/components/dashboard/notification-center"
 import { Loader2, Menu, X, CheckCircle2 } from "lucide-react"
-import { generateSlug } from "@/lib/utils"
+import { useSession, signOut } from "@/lib/auth-client"
 import { toast } from "sonner"
 
 interface Business {
@@ -14,8 +15,6 @@ interface Business {
   slug: string
   category: string
 }
-
-const STORAGE_KEY = "reviewforge_business"
 
 export const BusinessContext = createContext<{
   business: Business
@@ -28,68 +27,86 @@ export function useBusinessContext() {
   return ctx
 }
 
-function loadBusiness(): Business | null {
-  if (typeof window === "undefined") return null
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      if (parsed && parsed.id && parsed.name && parsed.slug && parsed.category) {
-        return parsed
-      }
-    }
-  } catch {
-    // Corrupted data, ignore
-  }
-  return null
-}
-
-function saveBusiness(b: Business) {
-  if (typeof window === "undefined") return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(b))
-}
-
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const { data: sessionData, isPending: sessionLoading } = useSession()
   const [business, setBusiness] = useState<Business | null>(null)
   const [loadingBusiness, setLoadingBusiness] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // Load businesses from API once session is available
   useEffect(() => {
-    const saved = loadBusiness()
-    if (saved) {
-      setBusiness(saved)
+    if (sessionLoading) return
+
+    if (!sessionData?.session) {
+      router.push("/login")
+      return
     }
-    setLoadingBusiness(false)
-  }, [])
+
+    async function loadBusinesses() {
+      try {
+        const res = await fetch("/api/businesses")
+        if (res.status === 401) {
+          router.push("/login")
+          return
+        }
+        if (!res.ok) {
+          throw new Error("Failed to load businesses")
+        }
+        const businesses = await res.json()
+        if (businesses.length > 0) {
+          setBusiness(businesses[0])
+        }
+      } catch (err) {
+        console.error("Failed to load businesses:", err)
+        toast.error("Failed to load your business data")
+      } finally {
+        setLoadingBusiness(false)
+      }
+    }
+
+    loadBusinesses()
+  }, [sessionData, sessionLoading, router])
 
   const updateBusiness = useCallback((updates: Partial<Business>) => {
     setBusiness((prev) => {
       if (!prev) return prev
-      const updated = { ...prev, ...updates }
-      saveBusiness(updated)
-      return updated
+      return { ...prev, ...updates }
     })
   }, [])
 
   function handleBusinessCreated(b: Business) {
-    saveBusiness(b)
     setBusiness(b)
   }
 
-  // Close mobile menu on route change
+  // Close mobile menu on route change (not children, which changes every render)
   useEffect(() => {
     setMobileMenuOpen(false)
-  }, [children])
+  }, [pathname])
+
+  async function handleSignOut() {
+    await signOut()
+    router.push("/login")
+  }
+
+  if (sessionLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#eef8e6]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-[#eef8e6]">
       {/* Desktop Sidebar */}
       <div className="w-64 shrink-0 hidden md:block">
-        <Sidebar businessSlug={business?.slug} />
+        <Sidebar businessSlug={business?.slug} onSignOut={handleSignOut} />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -104,6 +121,7 @@ export default function DashboardLayout({
             <Sidebar
               businessSlug={business?.slug}
               onNavigate={() => setMobileMenuOpen(false)}
+              onSignOut={handleSignOut}
             />
           </div>
         </div>
@@ -114,8 +132,9 @@ export default function DashboardLayout({
         <div className="md:hidden sticky top-0 z-40 bg-white border-b border-[#b8dca8] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-1.5 rounded-lg hover:bg-[#eef8e6] transition-colors"
+            className={`p-1.5 rounded-lg transition-colors ${mobileMenuOpen ? "bg-[#d4f0c0]" : "hover:bg-[#eef8e6]"}`}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? (
               <X className="h-5 w-5 text-[#1a3a2a]" />
@@ -130,7 +149,7 @@ export default function DashboardLayout({
             <span className="text-sm font-bold text-[#1a3a2a]">ReviewForge</span>
           </div>
           <SearchTrigger />
-          <NotificationCenter />
+          <NotificationCenter businessId={business?.id} />
         </div>
 
         {/* Desktop Header Bar */}
@@ -138,9 +157,9 @@ export default function DashboardLayout({
           <div />
           <div className="flex items-center gap-3">
             <SearchTrigger />
-            <NotificationCenter />
+            <NotificationCenter businessId={business?.id} />
             <div className="w-8 h-8 rounded-full bg-[#d4f0c0] flex items-center justify-center text-xs font-bold text-[#1a3a2a]">
-              {business?.name?.[0]?.toUpperCase() || "U"}
+              {sessionData?.user?.name?.[0]?.toUpperCase() || "U"}
             </div>
           </div>
         </div>
@@ -155,7 +174,7 @@ export default function DashboardLayout({
           ) : (
             <BusinessContext.Provider value={{ business, updateBusiness }}>
               <SearchCommand />
-              <OnboardingChecklist businessName={business.name} />
+              <OnboardingChecklist />
               {children}
             </BusinessContext.Provider>
           )}
@@ -175,20 +194,30 @@ function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
     if (!name.trim()) return
     setLoading(true)
 
-    // Simulate a brief delay for UX
-    await new Promise((r) => setTimeout(r, 600))
+    try {
+      const res = await fetch("/api/businesses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          category,
+        }),
+      })
 
-    const slug = generateSlug(name)
-    const newBusiness: Business = {
-      id: `biz-${Date.now()}`,
-      name: name.trim(),
-      slug,
-      category,
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Failed to create business")
+        return
+      }
+
+      const created = await res.json()
+      onCreated(created)
+      toast.success("Business created! Your review link is ready.")
+    } catch {
+      toast.error("Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
     }
-
-    onCreated(newBusiness)
-    toast.success("Business created! Your review link is ready.")
-    setLoading(false)
   }
 
   const categories = [
@@ -234,7 +263,7 @@ function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
             className="w-full px-3 py-2.5 border border-[#b8dca8] rounded-lg text-sm focus:ring-2 focus:ring-[#2d6a4f] focus:border-transparent outline-none bg-white"
             required
             autoFocus
-            maxLength={100}
+            maxLength={200}
           />
         </div>
         <div>
@@ -288,7 +317,7 @@ function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
 
 const ONBOARDING_KEY = "reviewforge_onboarding"
 
-function OnboardingChecklist({ businessName }: { businessName: string }) {
+function OnboardingChecklist() {
   const [dismissed, setDismissed] = useState(true)
   const [completed, setCompleted] = useState<string[]>([])
 
@@ -309,7 +338,7 @@ function OnboardingChecklist({ businessName }: { businessName: string }) {
       }
     } else {
       setDismissed(false)
-      setCompleted(["create-account"])
+      setCompleted(["create-account", "setup-business"])
     }
   }, [])
 
@@ -332,11 +361,10 @@ function OnboardingChecklist({ businessName }: { businessName: string }) {
 
   const steps = [
     { id: "create-account", label: "Create your account", time: "Done!" },
-    { id: "connect-google", label: "Connect Google Business Profile", time: "3 min" },
-    { id: "import-reviews", label: "Import existing reviews", time: "Automatic" },
-    { id: "generate-qr", label: "Generate your QR code", time: "1 min" },
-    { id: "first-request", label: "Send your first review request", time: "2 min" },
-    { id: "setup-responses", label: "Set up AI auto-responses", time: "5 min" },
+    { id: "setup-business", label: "Set up your business profile", time: "Done!" },
+    { id: "share-link", label: "Share your review collection link", time: "1 min" },
+    { id: "first-review", label: "Get your first review", time: "Varies" },
+    { id: "first-response", label: "Respond to a review with AI", time: "2 min" },
   ]
 
   const completedCount = completed.length
@@ -364,7 +392,6 @@ function OnboardingChecklist({ businessName }: { businessName: string }) {
         </button>
       </div>
 
-      {/* Progress bar */}
       <div className="w-full h-2 bg-[#eef8e6] rounded-full mb-4 overflow-hidden">
         <div
           className="h-full bg-[#2d6a4f] rounded-full transition-all duration-500"

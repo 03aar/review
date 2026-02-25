@@ -15,7 +15,12 @@ import {
   BarChart3,
   PieChart,
   Loader2,
+  Copy,
+  Link as LinkIcon,
 } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import {
   BarChart,
   Bar,
@@ -24,7 +29,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
+  ComposedChart,
   Line,
   PieChart as RechartPie,
   Pie,
@@ -95,6 +100,24 @@ export default function InsightsPage() {
             <p className="text-sm text-[#5a6b5a] mt-1">
               Insights will appear once you start collecting reviews
             </p>
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
+              <Button
+                size="sm"
+                className="gap-1.5 bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/r/${business.slug}`)
+                  toast.success("Review link copied!")
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copy Review Link
+              </Button>
+              <Link href="/dashboard/campaigns">
+                <Button size="sm" variant="outline" className="gap-1.5 border-[#b8dca8]">
+                  Send Review Requests
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -246,7 +269,7 @@ export default function InsightsPage() {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={insights.recentTrend}>
+                <ComposedChart data={insights.recentTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
@@ -282,7 +305,7 @@ export default function InsightsPage() {
                     name="Avg Rating"
                     dot={{ fill: "#f59e0b" }}
                   />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
@@ -297,7 +320,7 @@ export default function InsightsPage() {
         <CardContent>
           {insights.topTopics.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Not enough data for topic analysis yet
+              Need 5+ reviews to analyze topics. You have {insights.totalReviews} so far.
             </p>
           ) : (
             <div className="space-y-4">

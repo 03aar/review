@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   ArrowRight,
+  ArrowLeft,
   Shield,
   FileText,
   Cookie,
@@ -104,7 +105,15 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* Page Content */}
-      <main>{children}</main>
+      <main>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#1a2e1a]/50 hover:text-[#1a2e1a] transition-colors">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to home
+          </Link>
+        </div>
+        {children}
+      </main>
 
       {/* Footer */}
       <footer className="bg-[#FFF8F0] border-t-2 border-[#1a2e1a] py-16">
@@ -163,7 +172,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <p className="text-xs text-[#1a2e1a]/30">&copy; 2026 Schroeder Technologies. All rights reserved. ReviewForge is a registered trademark.</p>
             <div className="flex items-center gap-6">
               {["Twitter", "LinkedIn", "Instagram"].map((s) => (
-                <a key={s} href="#" className="text-xs text-[#1a2e1a]/30 hover:text-[#1a2e1a] transition-colors">{s}</a>
+                <span key={s} className="text-xs text-[#1a2e1a]/30">{s}</span>
               ))}
             </div>
           </div>

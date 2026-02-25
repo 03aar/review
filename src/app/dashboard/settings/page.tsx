@@ -53,7 +53,7 @@ import {
   Printer,
 } from "lucide-react"
 import { toast } from "sonner"
-import { generateSlug } from "@/lib/utils"
+// generateSlug removed — slug is managed server-side
 
 const SETTINGS_KEY = "reviewforge_settings"
 
@@ -284,6 +284,7 @@ export default function SettingsPage() {
   // Business profile form
   const [bizName, setBizName] = useState(business.name)
   const [bizCategory, setBizCategory] = useState(business.category)
+  const [bizSaving, setBizSaving] = useState(false)
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState("")
@@ -339,28 +340,86 @@ export default function SettingsPage() {
     toast.success("Profile saved successfully!")
   }
 
-  function handleSaveBusiness() {
+  async function handleSaveBusiness() {
     if (!bizName.trim()) {
       toast.error("Business name is required")
       return
     }
-    const newSlug = generateSlug(bizName)
-    updateBusiness({
-      name: bizName.trim(),
-      category: bizCategory,
-      slug: newSlug,
-    })
-    updateSettingsField({
-      bizStreet: settings.bizStreet,
-      bizCity: settings.bizCity,
-      bizState: settings.bizState,
-      bizZip: settings.bizZip,
-      bizPhone: settings.bizPhone,
-      bizWebsite: settings.bizWebsite,
-      brandColor: settings.brandColor,
-      businessHours: settings.businessHours,
-    })
-    toast.success("Business settings saved!")
+    if (bizName.trim().length > 100) {
+      toast.error("Business name must be under 100 characters")
+      return
+    }
+    if (settings.bizWebsite) {
+      try {
+        const url = new URL(settings.bizWebsite)
+        if (!["http:", "https:"].includes(url.protocol)) {
+          toast.error("Website must start with http:// or https://")
+          return
+        }
+      } catch {
+        toast.error("Please enter a valid website URL (e.g. https://example.com)")
+        return
+      }
+    }
+    if (settings.bizPhone && !/^[+\d\s()-]{7,20}$/.test(settings.bizPhone)) {
+      toast.error("Please enter a valid phone number")
+      return
+    }
+    setBizSaving(true)
+
+    // Build the full address from parts
+    const addressParts = [
+      settings.bizStreet,
+      settings.bizCity,
+      settings.bizState,
+      settings.bizZip,
+    ].filter(Boolean)
+    const fullAddress = addressParts.join(", ") || null
+
+    try {
+      const res = await fetch("/api/businesses", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: business.id,
+          name: bizName.trim(),
+          category: bizCategory,
+          address: fullAddress,
+          phone: settings.bizPhone || null,
+          website: settings.bizWebsite || null,
+          primaryColor: settings.brandColor || "#1a3a2a",
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Failed to save business settings")
+        return
+      }
+
+      const updated = await res.json()
+      updateBusiness({
+        name: updated.name,
+        category: updated.category,
+      })
+
+      // Save local-only fields (business hours, address parts)
+      updateSettingsField({
+        bizStreet: settings.bizStreet,
+        bizCity: settings.bizCity,
+        bizState: settings.bizState,
+        bizZip: settings.bizZip,
+        bizPhone: settings.bizPhone,
+        bizWebsite: settings.bizWebsite,
+        brandColor: settings.brandColor,
+        businessHours: settings.businessHours,
+      })
+      toast.success("Business settings saved!")
+    } catch {
+      toast.error("Failed to save business settings")
+    } finally {
+      setBizSaving(false)
+    }
   }
 
   function handleTogglePlatform(platformName: string) {
@@ -504,20 +563,21 @@ export default function SettingsPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
         <div className="flex gap-1 min-w-max pb-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+              title={tab.label}
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? "bg-[#1a3a2a] text-[#e4f5d6]"
                   : "text-[#5a6b5a] hover:bg-[#d4f0c0] hover:text-[#1a3a2a]"
               }`}
             >
               {tab.icon}
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -847,9 +907,9 @@ export default function SettingsPage() {
                 <p className="text-xs text-[#5a6b5a]">Primary color used on your review collection page</p>
               </div>
 
-              <Button onClick={handleSaveBusiness} className="gap-2 bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]">
+              <Button onClick={handleSaveBusiness} disabled={bizSaving} className="gap-2 bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]">
                 <Save className="h-4 w-4" />
-                Save Business Settings
+                {bizSaving ? "Saving..." : "Save Business Settings"}
               </Button>
             </CardContent>
           </Card>

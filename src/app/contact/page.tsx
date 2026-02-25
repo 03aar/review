@@ -110,24 +110,24 @@ export default function ContactPage() {
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    // Build mailto link with form data — no backend email service yet
+    const subject = encodeURIComponent(
+      formData.subject || `${formData.inquiryType || "General"} Inquiry from ${formData.firstName}`
+    )
+    const body = encodeURIComponent(
+      `Name: ${formData.firstName} ${formData.lastName}\n` +
+      `Email: ${formData.email}\n` +
+      (formData.company ? `Company: ${formData.company}\n` : "") +
+      (formData.phone ? `Phone: ${formData.phone}\n` : "") +
+      (formData.inquiryType ? `Type: ${formData.inquiryType}\n` : "") +
+      `\n${formData.message}`
+    )
+    window.location.href = `mailto:hello@reviewforge.com?subject=${subject}&body=${body}`
 
+    // Brief delay so user sees the loading state before email client opens
+    await new Promise((resolve) => setTimeout(resolve, 500))
     setIsSubmitting(false)
-    toast.success("Message sent successfully! We'll get back to you within 24 hours.")
-
-    setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      company: "",
-      phone: "",
-      inquiryType: "",
-      subject: "",
-      message: "",
-      hearAbout: "",
-      agreePrivacy: false,
-    })
+    toast.success("Opening your email client... If it doesn't open, email us at hello@reviewforge.com")
   }
 
   const inputClass =

@@ -21,6 +21,11 @@ interface SpeechRecognitionAlternative {
   readonly confidence: number
 }
 
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: string
+  readonly message: string
+}
+
 interface SpeechRecognition extends EventTarget {
   continuous: boolean
   interimResults: boolean
@@ -29,7 +34,7 @@ interface SpeechRecognition extends EventTarget {
   stop(): void
   abort(): void
   onresult: ((event: SpeechRecognitionEvent) => void) | null
-  onerror: ((event: Event) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
   onend: (() => void) | null
   onstart: (() => void) | null
 }

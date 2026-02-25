@@ -146,13 +146,36 @@
   animation: marquee 20s linear infinite;
 }
 
-/* Smooth scroll */
+/* Smooth scroll with padding for fixed headers */
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 /* Custom selection */
 ::selection {
   background: #C8F5D4;
   color: #1a2e1a;
+}
+
+/* Focus-visible: only show focus ring on keyboard navigation */
+:focus-visible {
+  outline: 2px solid #2d6a4f;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Custom scrollbar for sidebar & overflow areas */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #b8dca8;
+  border-radius: 4px;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #2d6a4f;
 }

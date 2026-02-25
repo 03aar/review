@@ -28,6 +28,7 @@ import {
   Search,
   Download,
   Link as LinkIcon,
+  Copy,
 } from "lucide-react"
 import { timeAgo } from "@/lib/utils"
 import { toast } from "sonner"
@@ -60,15 +61,23 @@ export default function ReviewsPage() {
   const [isGeneratingResponse, setIsGeneratingResponse] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
 
-  useEffect(() => {
-    fetch(`/api/reviews?businessId=${business.id}`)
+  function fetchReviews() {
+    return fetch(`/api/reviews?businessId=${business.id}&pageSize=100`)
       .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch")
         return r.json()
       })
-      .then((data) => setReviews(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const reviewList = data?.data ?? (Array.isArray(data) ? data : [])
+        setReviews(reviewList)
+      })
+  }
+
+  useEffect(() => {
+    fetchReviews()
       .catch(() => setError(true))
       .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [business.id])
 
   const filteredReviews = useMemo(() => {
@@ -99,6 +108,7 @@ export default function ReviewsPage() {
           rating: review.rating,
           businessName: business.name,
           customerName: review.customerName || undefined,
+          businessCategory: business.category || undefined,
         }),
       })
       if (!res.ok) throw new Error("Failed")
@@ -113,20 +123,26 @@ export default function ReviewsPage() {
   }
 
   async function handleApproveResponse() {
-    if (!selectedReview) return
+    if (!selectedReview || !responseText.trim()) return
 
     try {
+      // Always use "edit" action — it handles both cases:
+      //   - If a draft exists: updates finalResponse and sets status to "posted"
+      //   - If no draft exists: creates and posts in one step
+      // Using "approve" would fail if no draft was created via "regenerate" first.
       const res = await fetch(`/api/reviews/${selectedReview.id}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: isEditing ? "edit" : "approve",
+          action: "edit",
           editedResponse: responseText,
         }),
       })
       if (!res.ok) throw new Error("Failed")
       toast.success("Response posted!")
       setSelectedReview(null)
+      // Refresh the list so the user sees the updated status
+      fetchReviews().catch(() => {})
     } catch {
       toast.error("Failed to post response")
     }
@@ -162,15 +178,22 @@ export default function ReviewsPage() {
   }
 
   function handleExportCSV() {
+    // Sanitize CSV cells: prevent formula injection, escape quotes, wrap in quotes
+    function csvCell(value: string): string {
+      let safe = value.replace(/^[=+\-@\t\r]+/, "")
+      safe = safe.replace(/"/g, '""')
+      return `"${safe}"`
+    }
+
     const headers = ["Customer", "Rating", "Sentiment", "Platform", "Source", "Review", "Date"]
     const rows = reviews.map((r) => [
-      r.customerName || "Anonymous",
-      r.rating.toString(),
-      r.sentiment || "",
-      r.platform,
-      r.source,
-      `"${(r.finalReview || r.generatedReview || "").replace(/"/g, '""')}"`,
-      new Date(r.createdAt).toLocaleDateString(),
+      csvCell(r.customerName || "Anonymous"),
+      csvCell(r.rating.toString()),
+      csvCell(r.sentiment || ""),
+      csvCell(r.platform),
+      csvCell(r.source),
+      csvCell(r.finalReview || r.generatedReview || ""),
+      csvCell(new Date(r.createdAt).toLocaleDateString()),
     ])
 
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
@@ -310,9 +333,22 @@ export default function ReviewsPage() {
               )}
             </p>
             {reviews.length === 0 && (
-              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-[#2d6a4f]">
-                <LinkIcon className="h-4 w-4" />
-                <code className="bg-[#eef8e6] px-2 py-1 rounded">/r/{business.slug}</code>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-center gap-2 text-sm text-[#2d6a4f]">
+                  <LinkIcon className="h-4 w-4" />
+                  <code className="bg-[#eef8e6] px-2 py-1 rounded">/r/{business.slug}</code>
+                </div>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/r/${business.slug}`)
+                    toast.success("Review link copied!")
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy Review Link
+                </Button>
               </div>
             )}
           </CardContent>

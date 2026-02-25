@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,6 +30,63 @@ const RATING_EMOJIS = [
   { value: 5, emoji: "\uD83E\uDD29", label: "Amazing" },
 ]
 
+/** Step progress for the public review path (rating ≥4) */
+const PUBLIC_STEPS: Step[] = ["rating", "feedback", "preview", "success"]
+/** Step progress for the private feedback path (rating ≤3) */
+const PRIVATE_STEPS: Step[] = ["rating", "private-feedback", "private-success"]
+
+function getStepProgress(step: Step, rating: number): { current: number; total: number } {
+  const steps = rating <= 3 ? PRIVATE_STEPS : PUBLIC_STEPS
+  const idx = steps.indexOf(step)
+  return { current: Math.max(idx, 0) + 1, total: steps.length }
+}
+
+/** Rotating progress messages shown during AI generation */
+const AI_PROGRESS_MESSAGES = [
+  "Polishing your words...",
+  "Crafting the perfect review...",
+  "Adding some sparkle...",
+  "Almost there...",
+]
+
+/** sessionStorage key for persisting widget form state */
+const STORAGE_KEY = "reviewforge-widget"
+
+interface WidgetFormState {
+  step: Step
+  rating: number
+  rawInput: string
+  customerName: string
+  generatedReview: string
+  editedReview: string
+  selectedPlatforms: string[]
+  privateFeedback: string
+  privateEmail: string
+  usedVoice: boolean
+}
+
+function saveFormState(slug: string, state: WidgetFormState) {
+  try {
+    sessionStorage.setItem(`${STORAGE_KEY}-${slug}`, JSON.stringify(state))
+  } catch { /* quota exceeded or unavailable — ignore */ }
+}
+
+function loadFormState(slug: string): WidgetFormState | null {
+  try {
+    const raw = sessionStorage.getItem(`${STORAGE_KEY}-${slug}`)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function clearFormState(slug: string) {
+  try {
+    sessionStorage.removeItem(`${STORAGE_KEY}-${slug}`)
+  } catch { /* ignore */ }
+}
+
 export default function ReviewCapturePage() {
   const params = useParams()
   const slug = params.slug as string
@@ -38,22 +95,66 @@ export default function ReviewCapturePage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
-  const [step, setStep] = useState<Step>("rating")
-  const [rating, setRating] = useState<number>(0)
-  const [rawInput, setRawInput] = useState("")
-  const [customerName, setCustomerName] = useState("")
-  const [generatedReview, setGeneratedReview] = useState("")
-  const [editedReview, setEditedReview] = useState("")
+  // Restore form state from sessionStorage on mount
+  const saved = useRef<WidgetFormState | null>(null)
+  if (saved.current === null) {
+    saved.current = loadFormState(slug) || ({} as WidgetFormState)
+  }
+  const s = saved.current
+
+  const [step, setStep] = useState<Step>(s.step || "rating")
+  const [rating, setRating] = useState<number>(s.rating || 0)
+  const [rawInput, setRawInput] = useState(s.rawInput || "")
+  const [customerName, setCustomerName] = useState(s.customerName || "")
+  const [generatedReview, setGeneratedReview] = useState(s.generatedReview || "")
+  const [editedReview, setEditedReview] = useState(s.editedReview || "")
   const [isEditing, setIsEditing] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [usedVoice, setUsedVoice] = useState(s.usedVoice || false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [aiProgressIdx, setAiProgressIdx] = useState(0)
   const [isPosting, setIsPosting] = useState(false)
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["google"])
-  const [privateFeedback, setPrivateFeedback] = useState("")
-  const [privateEmail, setPrivateEmail] = useState("")
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(s.selectedPlatforms || ["google"])
+  const [privateFeedback, setPrivateFeedback] = useState(s.privateFeedback || "")
+  const [privateEmail, setPrivateEmail] = useState(s.privateEmail || "")
   const [isSubmittingPrivate, setIsSubmittingPrivate] = useState(false)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+
+  // Persist form state to sessionStorage on changes (not on success steps)
+  useEffect(() => {
+    if (step === "success" || step === "private-success") {
+      clearFormState(slug)
+      return
+    }
+    saveFormState(slug, {
+      step, rating, rawInput, customerName, generatedReview, editedReview,
+      selectedPlatforms, privateFeedback, privateEmail, usedVoice,
+    })
+  }, [slug, step, rating, rawInput, customerName, generatedReview, editedReview, selectedPlatforms, privateFeedback, privateEmail, usedVoice])
+
+  // Warn before leaving page with unsaved data
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (step !== "rating" && step !== "success" && step !== "private-success") {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [step])
+
+  // Rotate AI progress messages during generation
+  useEffect(() => {
+    if (!isGenerating) {
+      setAiProgressIdx(0)
+      return
+    }
+    const interval = setInterval(() => {
+      setAiProgressIdx((prev) => (prev + 1) % AI_PROGRESS_MESSAGES.length)
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [isGenerating])
 
   useEffect(() => {
     async function fetchBusiness() {
@@ -88,7 +189,7 @@ export default function ReviewCapturePage() {
     setIsSubmittingPrivate(true)
 
     try {
-      await fetch("/api/reviews", {
+      const res = await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -102,11 +203,15 @@ export default function ReviewCapturePage() {
           source: "link",
         }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Failed to send feedback. Please try again.")
+        return
+      }
       toast.success("Thank you! We'll review your feedback carefully.", { duration: 4000 })
       setStep("private-success")
     } catch {
-      toast.success("Thank you! We'll review your feedback carefully.", { duration: 4000 })
-      setStep("private-success")
+      toast.error("Network error. Please check your connection and try again.")
     } finally {
       setIsSubmittingPrivate(false)
     }
@@ -139,8 +244,15 @@ export default function ReviewCapturePage() {
       setRawInput(finalTranscript + interim)
     }
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       setIsRecording(false)
+      if (event.error === "not-allowed") {
+        toast.error("Microphone access denied. Please allow mic access in your browser settings.", { duration: 5000 })
+      } else if (event.error === "no-speech") {
+        toast.error("No speech detected. Please try again and speak clearly.", { duration: 3000 })
+      } else {
+        toast.error("Voice recording failed. Please type your feedback instead.", { duration: 3000 })
+      }
     }
 
     recognition.onend = () => {
@@ -150,6 +262,7 @@ export default function ReviewCapturePage() {
     recognitionRef.current = recognition
     recognition.start()
     setIsRecording(true)
+    setUsedVoice(true)
   }
 
   function stopRecording() {
@@ -174,12 +287,16 @@ export default function ReviewCapturePage() {
           businessCategory: business.category,
         }),
       })
+      if (!res.ok) {
+        throw new Error("API error")
+      }
       const data = await res.json()
       setGeneratedReview(data.generatedReview)
       setEditedReview(data.generatedReview)
       setStep("preview")
     } catch {
-      const fallback = `Had a great experience at ${business.name}! ${rawInput}`
+      // Fallback: use the customer's raw input directly (rating-aware, no fake embellishment)
+      const fallback = rawInput.trim() || `My experience at ${business.name} was ${rating >= 4 ? "great" : rating === 3 ? "okay" : "disappointing"}.`
       setGeneratedReview(fallback)
       setEditedReview(fallback)
       setStep("preview")
@@ -193,22 +310,29 @@ export default function ReviewCapturePage() {
     setIsPosting(true)
 
     try {
-      await fetch("/api/reviews", {
+      const res = await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessId: business.id,
           rating,
           rawInput,
-          rawInputType: "text",
+          rawInputType: usedVoice ? "voice" : "text",
+          finalReview: editedReview,
           customerName: customerName || undefined,
           platform: selectedPlatforms[0] || "google",
+          platforms: selectedPlatforms,
           source: "link",
         }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Failed to post review. Please try again.")
+        return
+      }
       setStep("success")
     } catch {
-      setStep("success")
+      toast.error("Network error. Please check your connection and try again.")
     } finally {
       setIsPosting(false)
     }
@@ -219,6 +343,10 @@ export default function ReviewCapturePage() {
       prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
     )
   }
+
+  // Step progress for the progress bar
+  const { current: stepCurrent, total: stepTotal } = getStepProgress(step, rating)
+  const progressPct = (stepCurrent / stepTotal) * 100
 
   if (loading) {
     return (
@@ -255,7 +383,10 @@ export default function ReviewCapturePage() {
               transition={{ duration: 0.3 }}
             >
               <Card className="overflow-hidden border-[#b8dca8]">
-                <div className="h-2 bg-[#1a3a2a]" />
+                {/* Progress bar — step 1 always shows a sliver */}
+                <div className="h-1.5 bg-[#eef8e6]">
+                  <div className="h-full bg-[#2d6a4f] transition-all duration-500 rounded-r-full" style={{ width: "10%" }} />
+                </div>
                 <CardContent className="pt-8 pb-8 text-center space-y-6">
                   <div>
                     {business.logoUrl ? (
@@ -310,15 +441,20 @@ export default function ReviewCapturePage() {
               transition={{ duration: 0.3 }}
             >
               <Card className="overflow-hidden border-[#b8dca8]">
-                <div className="h-2 bg-[#1a3a2a]" />
+                <div className="h-1.5 bg-[#eef8e6]">
+                  <div className="h-full bg-[#2d6a4f] transition-all duration-500 rounded-r-full" style={{ width: `${progressPct}%` }} />
+                </div>
                 <CardContent className="pt-6 pb-6 space-y-4">
-                  <button
-                    onClick={() => setStep("rating")}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setStep("rating")}
+                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Back
+                    </button>
+                    <span className="text-xs text-muted-foreground">Step {stepCurrent} of {stepTotal}</span>
+                  </div>
 
                   <div className="text-center">
                     <span className="text-4xl">
@@ -343,7 +479,9 @@ export default function ReviewCapturePage() {
                         }
                         value={rawInput}
                         onChange={(e) => setRawInput(e.target.value)}
+                        maxLength={5000}
                         className="min-h-[100px] pr-12"
+                        autoFocus
                       />
                       <button
                         onClick={isRecording ? stopRecording : startRecording}
@@ -352,6 +490,7 @@ export default function ReviewCapturePage() {
                             ? "bg-red-100 text-red-600 animate-pulse"
                             : "bg-[#d4f0c0] text-[#1a3a2a] hover:bg-[#b8dca8]"
                         }`}
+                        aria-label={isRecording ? "Stop recording" : "Start voice recording"}
                       >
                         {isRecording ? (
                           <MicOff className="h-5 w-5" />
@@ -362,16 +501,26 @@ export default function ReviewCapturePage() {
                     </div>
 
                     {isRecording && (
-                      <p className="text-sm text-red-600 text-center animate-pulse">
+                      <p className="text-sm text-red-600 text-center animate-pulse" role="status" aria-live="polite">
                         Listening... Tap the mic to stop
                       </p>
                     )}
+                    {rawInput.length > 0 && (
+                      <p className="text-xs text-muted-foreground text-right">{rawInput.length.toLocaleString()} / 5,000</p>
+                    )}
 
-                    <Input
-                      placeholder="Your name (optional)"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                    />
+                    <div>
+                      <label htmlFor="widget-name" className="text-sm text-muted-foreground mb-1 block">
+                        Your name <span className="text-xs opacity-60">(optional)</span>
+                      </label>
+                      <Input
+                        id="widget-name"
+                        placeholder="Jane Smith"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        maxLength={100}
+                      />
+                    </div>
                   </div>
 
                   <Button
@@ -383,7 +532,9 @@ export default function ReviewCapturePage() {
                     {isGenerating ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Creating your review...
+                        <span key={aiProgressIdx} className="animate-pulse">
+                          {AI_PROGRESS_MESSAGES[aiProgressIdx]}
+                        </span>
                       </>
                     ) : (
                       <>
@@ -411,15 +562,20 @@ export default function ReviewCapturePage() {
               transition={{ duration: 0.3 }}
             >
               <Card className="overflow-hidden border-[#b8dca8]">
-                <div className="h-2 bg-[#1a3a2a]" />
+                <div className="h-1.5 bg-[#eef8e6]">
+                  <div className="h-full bg-[#2d6a4f] transition-all duration-500 rounded-r-full" style={{ width: `${progressPct}%` }} />
+                </div>
                 <CardContent className="pt-6 pb-6 space-y-4">
-                  <button
-                    onClick={() => setStep("rating")}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setStep("rating")}
+                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Back
+                    </button>
+                    <span className="text-xs text-muted-foreground">Step {stepCurrent} of {stepTotal}</span>
+                  </div>
 
                   <div className="text-center">
                     <span className="text-4xl">{"\uD83D\uDE1E"}</span>
@@ -432,25 +588,46 @@ export default function ReviewCapturePage() {
                   </div>
 
                   <div className="space-y-3">
-                    <Textarea
-                      placeholder="Tell us what happened and how we can do better..."
-                      value={privateFeedback}
-                      onChange={(e) => setPrivateFeedback(e.target.value)}
-                      className="min-h-[150px]"
-                    />
+                    <div>
+                      <Textarea
+                        placeholder="Tell us what happened and how we can do better..."
+                        value={privateFeedback}
+                        onChange={(e) => setPrivateFeedback(e.target.value)}
+                        maxLength={5000}
+                        className="min-h-[150px]"
+                        autoFocus
+                      />
+                      {privateFeedback.length > 0 && (
+                        <p className="text-xs text-muted-foreground text-right mt-1">{privateFeedback.length.toLocaleString()} / 5,000</p>
+                      )}
+                    </div>
 
-                    <Input
-                      placeholder="Your name (optional)"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                    />
+                    <div>
+                      <label htmlFor="private-name" className="text-sm text-muted-foreground mb-1 block">
+                        Your name <span className="text-xs opacity-60">(optional)</span>
+                      </label>
+                      <Input
+                        id="private-name"
+                        placeholder="Jane Smith"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        maxLength={100}
+                      />
+                    </div>
 
-                    <Input
-                      placeholder="Your email for follow-up (optional)"
-                      type="email"
-                      value={privateEmail}
-                      onChange={(e) => setPrivateEmail(e.target.value)}
-                    />
+                    <div>
+                      <label htmlFor="private-email" className="text-sm text-muted-foreground mb-1 block">
+                        Email for follow-up <span className="text-xs opacity-60">(optional)</span>
+                      </label>
+                      <Input
+                        id="private-email"
+                        placeholder="you@example.com"
+                        type="email"
+                        value={privateEmail}
+                        onChange={(e) => setPrivateEmail(e.target.value)}
+                        maxLength={255}
+                      />
+                    </div>
                   </div>
 
                   <Button
@@ -490,21 +667,26 @@ export default function ReviewCapturePage() {
               transition={{ duration: 0.3 }}
             >
               <Card className="overflow-hidden border-[#b8dca8]">
-                <div className="h-2 bg-[#1a3a2a]" />
+                <div className="h-1.5 bg-[#eef8e6]">
+                  <div className="h-full bg-[#2d6a4f] transition-all duration-500 rounded-r-full" style={{ width: `${progressPct}%` }} />
+                </div>
                 <CardContent className="pt-6 pb-6 space-y-4">
-                  <button
-                    onClick={() => setStep("feedback")}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setStep("feedback")}
+                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Back
+                    </button>
+                    <span className="text-xs text-muted-foreground">Step {stepCurrent} of {stepTotal}</span>
+                  </div>
 
                   <div className="text-center">
                     <h2 className="text-lg font-medium text-[#1a3a2a]">
                       Here&apos;s your review
                     </h2>
-                    <div className="flex justify-center gap-0.5 mt-1">
+                    <div className="flex justify-center gap-0.5 mt-1" aria-label={`${rating} out of 5 stars`}>
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
@@ -520,24 +702,30 @@ export default function ReviewCapturePage() {
 
                   <div className="bg-[#eef8e6] rounded-lg p-4 relative">
                     {isEditing ? (
-                      <Textarea
-                        value={editedReview}
-                        onChange={(e) => setEditedReview(e.target.value)}
-                        className="min-h-[120px] bg-white"
-                      />
+                      <div>
+                        <Textarea
+                          value={editedReview}
+                          onChange={(e) => setEditedReview(e.target.value)}
+                          maxLength={5000}
+                          className="min-h-[120px] bg-white"
+                          autoFocus
+                        />
+                        <p className="text-xs text-muted-foreground text-right mt-1">{editedReview.length.toLocaleString()} / 5,000</p>
+                      </div>
                     ) : (
-                      <p className="text-sm leading-relaxed text-[#1a3a2a]">
+                      <p className="text-sm leading-relaxed text-[#1a3a2a] pr-10">
                         &ldquo;{editedReview}&rdquo;
                       </p>
                     )}
                     <button
                       onClick={() => setIsEditing(!isEditing)}
-                      className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-[#d4f0c0] transition-colors"
+                      className="absolute top-2 right-2 p-3 rounded-md hover:bg-[#d4f0c0] transition-colors"
+                      aria-label={isEditing ? "Done editing" : "Edit review"}
                     >
                       {isEditing ? (
-                        <Check className="h-4 w-4 text-[#2d6a4f]" />
+                        <Check className="h-5 w-5 text-[#2d6a4f]" />
                       ) : (
-                        <Edit3 className="h-4 w-4 text-[#4a7a5a]" />
+                        <Edit3 className="h-5 w-5 text-[#4a7a5a]" />
                       )}
                     </button>
                   </div>
@@ -562,10 +750,12 @@ export default function ReviewCapturePage() {
                         <button
                           key={p.id}
                           onClick={() => togglePlatform(p.id)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                          aria-pressed={selectedPlatforms.includes(p.id)}
+                          title={p.label}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border-2 transition-all ${
                             selectedPlatforms.includes(p.id)
-                              ? "bg-[#d4f0c0] border-[#2d6a4f] text-[#1a3a2a]"
-                              : "border-gray-200 text-gray-500 hover:border-gray-300"
+                              ? "bg-[#d4f0c0] border-[#2d6a4f] text-[#1a3a2a] shadow-sm"
+                              : "border-[#b8dca8] text-[#4a7a5a] hover:border-[#2d6a4f] hover:bg-[#eef8e6]"
                           }`}
                         >
                           <span className="font-bold text-xs">{p.icon}</span>
@@ -610,7 +800,7 @@ export default function ReviewCapturePage() {
               transition={{ duration: 0.4 }}
             >
               <Card className="overflow-hidden border-[#b8dca8]">
-                <div className="h-2 bg-[#1a3a2a]" />
+                <div className="h-1.5 bg-[#2d6a4f]" />
                 <CardContent className="pt-8 pb-8 text-center space-y-4">
                   <div className="mx-auto w-16 h-16 bg-[#d4f0c0] rounded-full flex items-center justify-center">
                     <Check className="h-8 w-8 text-[#2d6a4f]" />
@@ -622,7 +812,7 @@ export default function ReviewCapturePage() {
                     Your review has been posted. {business.name} really
                     appreciates your feedback!
                   </p>
-                  <div className="flex justify-center gap-0.5">
+                  <div className="flex justify-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star
                         key={i}
@@ -650,7 +840,7 @@ export default function ReviewCapturePage() {
               transition={{ duration: 0.4 }}
             >
               <Card className="overflow-hidden border-[#b8dca8]">
-                <div className="h-2 bg-[#1a3a2a]" />
+                <div className="h-1.5 bg-[#2d6a4f]" />
                 <CardContent className="pt-8 pb-8 text-center space-y-4">
                   <div className="mx-auto w-16 h-16 bg-[#d4f0c0] rounded-full flex items-center justify-center">
                     <Check className="h-8 w-8 text-[#2d6a4f]" />

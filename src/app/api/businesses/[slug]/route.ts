@@ -1,29 +1,47 @@
 import { NextRequest, NextResponse } from "next/server"
-import { DEMO_BUSINESS } from "@/lib/demo-data"
+import { db } from "@/db"
+import { business } from "@/db/schema"
+import { eq } from "drizzle-orm"
+import { applyRateLimit, publicLimiter } from "@/lib/rate-limit"
 
+// Public endpoint — used by the review capture widget (r/[slug])
+// No auth required: customers need to see business info to submit reviews
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const limited = applyRateLimit(req, publicLimiter, "biz-slug")
+  if (limited) return limited
+
   const { slug } = await params
 
-  if (!slug || slug.length < 1) {
+  if (!slug || slug.length < 1 || slug.length > 100 || !/^[a-z0-9-]+$/.test(slug)) {
     return NextResponse.json({ error: "Business not found" }, { status: 404 })
   }
 
-  // Accept any valid slug - return demo business data with the slug's name
-  // This allows user-created businesses to work with the review collection page
-  const businessName = slug
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase())
+  try {
+    const [found] = await db
+      .select({
+        id: business.id,
+        name: business.name,
+        slug: business.slug,
+        category: business.category,
+        description: business.description,
+        primaryColor: business.primaryColor,
+        googleConnected: business.googleConnected,
+        yelpConnected: business.yelpConnected,
+        facebookConnected: business.facebookConnected,
+      })
+      .from(business)
+      .where(eq(business.slug, slug))
+      .limit(1)
 
-  return NextResponse.json({
-    id: DEMO_BUSINESS.id,
-    name: slug === DEMO_BUSINESS.slug ? DEMO_BUSINESS.name : businessName,
-    slug,
-    category: DEMO_BUSINESS.category,
-    description: DEMO_BUSINESS.description,
-    primaryColor: DEMO_BUSINESS.primaryColor,
-    googleConnected: DEMO_BUSINESS.googleConnected,
-  })
+    if (!found) {
+      return NextResponse.json({ error: "Business not found" }, { status: 404 })
+    }
+
+    return NextResponse.json(found)
+  } catch {
+    return NextResponse.json({ error: "Failed to load business" }, { status: 500 })
+  }
 }

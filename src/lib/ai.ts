@@ -2,6 +2,18 @@
 // Generates polished, human-sounding reviews and contextual responses
 // Uses pattern-based generation with high variance to avoid template fatigue
 
+// ============ HELPERS ============
+
+/** Check if a word/phrase appears with word boundaries (prevents "tea" matching "steak") */
+function hasWord(text: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return new RegExp(`\\b${escaped}\\b`, "i").test(text)
+}
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
 // ============ ENTITY EXTRACTION ============
 
 interface ExtractedEntities {
@@ -13,6 +25,33 @@ interface ExtractedEntities {
   specifics: string[]  // anything unique from the input
 }
 
+// Words that look like names but aren't (sentence-initial caps, common words)
+const NAME_EXCLUSIONS = new Set([
+  "The", "Our", "My", "Her", "His", "Their", "This", "That", "Very",
+  "Still", "Every", "Just", "Some", "Most", "Each", "What", "When",
+  "Where", "Who", "How", "But", "And", "Not", "Now", "Well", "Here",
+  "There", "They", "Then", "Than", "Have", "Been", "Were", "Will",
+  "Would", "Could", "Should", "Also", "Really", "Even", "Much",
+  "Many", "Such", "Like", "Made", "Came", "Went", "Got", "Did",
+  "Had", "Was", "Are", "Can", "May", "All", "Too", "One", "Two",
+  "First", "Last", "Next", "Best", "Good", "Great", "Nice", "Fine",
+  "Food", "Place", "Service", "Staff", "Menu", "Table", "Room",
+  "Everything", "Nothing", "Something", "Anything", "Overall",
+  "Definitely", "Absolutely", "Honestly", "Seriously", "Highly",
+  "After", "Before", "During", "Since", "While", "Until",
+  "Never", "Always", "Usually", "Sometimes", "Today", "Yesterday",
+])
+
+const ADJECTIVE_EXCLUSIONS = new Set([
+  "that", "this", "then", "them", "they", "what", "when", "just",
+  "also", "been", "like", "here", "there", "some", "much", "well",
+  "only", "still", "even", "more", "most", "with", "from", "about",
+  "into", "over", "such", "each", "both", "same", "made", "done",
+  "going", "being", "having", "getting", "able", "okay", "quite",
+  "really", "very", "sure", "back", "down", "open", "full", "long",
+  "late", "early", "told", "said", "came", "went", "took", "gave",
+])
+
 function extractEntities(input: string): ExtractedEntities {
   const entities: ExtractedEntities = {
     people: [],
@@ -23,27 +62,27 @@ function extractEntities(input: string): ExtractedEntities {
     specifics: [],
   }
 
-  // Extract proper names (capitalized words that aren't sentence starters)
+  // Extract proper names (capitalized words after role indicators)
   const namePattern = /\b(?:with|by|named|called|our|server|waiter|waitress|bartender|chef|doctor|dr|nurse|hygienist|technician|stylist|barber)\s+([A-Z][a-z]+)/gi
   let match
   while ((match = namePattern.exec(input)) !== null) {
-    entities.people.push(match[1])
+    if (!NAME_EXCLUSIONS.has(match[1])) {
+      entities.people.push(match[1])
+    }
   }
 
-  // Also look for standalone capitalized names after common patterns
+  // Standalone capitalized names before verbs
   const standaloneNames = input.match(/(?:^|\.\s+)([A-Z][a-z]{2,})\s+(?:was|is|helped|made|took|brought)/g)
   if (standaloneNames) {
     standaloneNames.forEach(m => {
       const name = m.replace(/^[\.\s]+/, "").split(/\s/)[0]
-      if (!["The", "Our", "My", "Her", "His", "Their", "This", "That", "Very"].includes(name)) {
+      if (!NAME_EXCLUSIONS.has(name)) {
         entities.people.push(name)
       }
     })
   }
 
-  const lowerInput = input.toLowerCase()
-
-  // Food items
+  // Food items — word boundary prevents "tea" matching "steak", "pie" matching "piece"
   const foodWords = [
     "pizza", "pasta", "steak", "burger", "salad", "soup", "sushi", "tacos",
     "chicken", "fish", "salmon", "lobster", "shrimp", "ribs", "wings",
@@ -55,7 +94,7 @@ function extractEntities(input: string): ExtractedEntities {
     "osso buco", "filet", "wagyu", "tartare", "ceviche",
   ]
   foodWords.forEach(f => {
-    if (lowerInput.includes(f)) entities.dishes.push(f)
+    if (hasWord(input, f)) entities.dishes.push(f)
   })
 
   // Drink items
@@ -63,10 +102,10 @@ function extractEntities(input: string): ExtractedEntities {
     "wine", "beer", "cocktail", "margarita", "martini", "mojito",
     "coffee", "espresso", "latte", "cappuccino", "tea", "matcha",
     "sangria", "mimosa", "champagne", "prosecco", "bourbon", "whiskey",
-    "old fashioned", "negroni", "daiquiri", "cosmopolitan",
+    "old fashioned", "old-fashioned", "negroni", "daiquiri", "cosmopolitan",
   ]
   drinkWords.forEach(d => {
-    if (lowerInput.includes(d)) entities.drinks.push(d)
+    if (hasWord(input, d)) entities.drinks.push(d)
   })
 
   // Place references
@@ -76,7 +115,7 @@ function extractEntities(input: string): ExtractedEntities {
     "outdoor", "inside", "fireplace", "corner", "private room",
   ]
   placeWords.forEach(p => {
-    if (lowerInput.includes(p)) entities.places.push(p)
+    if (hasWord(input, p)) entities.places.push(p)
   })
 
   // Extract adjectives the customer used
@@ -90,18 +129,19 @@ function extractEntities(input: string): ExtractedEntities {
     let m
     while ((m = re.exec(input)) !== null) {
       const word = m[1].toLowerCase()
-      if (word.length > 3 && !["that", "this", "then", "them", "they", "what", "when", "just", "also", "been"].includes(word)) {
+      if (word.length > 3 && !ADJECTIVE_EXCLUSIONS.has(word)) {
         entities.adjectives.push(word)
       }
     }
   })
 
-  // Extract unique phrases as specifics (anything in quotes or after "especially", "loved the", etc.)
+  // Extract specific phrases (after "especially", "loved the", etc.)
   const specificPatterns = [
     /(?:loved|liked|enjoyed|tried|had|got|ordered)\s+(?:the\s+)?(.{3,30}?)(?:\.|,|!|\band\b)/gi,
     /(?:especially|particularly)\s+(?:the\s+)?(.{3,30}?)(?:\.|,|!)/gi,
   ]
   specificPatterns.forEach(pat => {
+    pat.lastIndex = 0 // Reset to ensure clean execution
     let m
     while ((m = pat.exec(input)) !== null) {
       entities.specifics.push(m[1].trim())
@@ -114,28 +154,27 @@ function extractEntities(input: string): ExtractedEntities {
 // ============ TOPIC DETECTION ============
 
 const TOPIC_KEYWORDS: Record<string, string[]> = {
-  "food quality": ["food", "meal", "dish", "taste", "flavor", "delicious", "fresh", "cook", "chef", "menu", "portion", "ingredient", "seasoning", "plate", "presentation"],
+  "food quality": ["food", "meal", "dish", "taste", "flavor", "delicious", "fresh", "cook", "cooked", "chef", "menu", "portion", "ingredient", "seasoning", "plate", "presentation"],
   "service": ["service", "waiter", "waitress", "server", "staff", "friendly", "attentive", "helpful", "rude", "slow", "host", "hostess", "greeted", "seated"],
-  "ambiance": ["ambiance", "atmosphere", "decor", "vibe", "cozy", "loud", "noise", "music", "lighting", "clean", "aesthetic", "beautiful", "romantic", "intimate"],
+  "ambiance": ["ambiance", "atmosphere", "decor", "vibe", "cozy", "loud", "noise", "music", "lighting", "aesthetic", "beautiful", "romantic", "intimate"],
   "value": ["price", "value", "expensive", "cheap", "affordable", "worth", "cost", "money", "overpriced", "reasonable", "deal", "bang for"],
-  "wait time": ["wait", "waited", "long", "quick", "fast", "slow", "time", "minutes", "hour", "reservation", "seated quickly", "took forever"],
-  "cleanliness": ["clean", "dirty", "hygiene", "spotless", "messy", "tidy", "bathroom", "restroom", "sanitary"],
-  "location": ["location", "parking", "accessible", "convenient", "find", "drive", "walk", "neighborhood", "area"],
-  "drinks": ["drink", "cocktail", "wine", "beer", "coffee", "tea", "beverage", "bar", "bartender", "mixology"],
+  "wait time": ["waited", "long wait", "slow", "quick", "minutes", "hour", "reservation", "took forever", "wait time", "on time"],
+  "cleanliness": ["clean", "dirty", "hygiene", "spotless", "messy", "tidy", "bathroom", "restroom", "sanitary", "cleaner"],
+  "location": ["location", "parking", "accessible", "convenient", "neighborhood", "find", "drive", "walk"],
+  "drinks": ["cocktail", "wine", "beer", "coffee", "tea", "beverage", "bar", "bartender", "mixology", "drink"],
   "dessert": ["dessert", "sweet", "cake", "pie", "ice cream", "chocolate", "pastry", "tiramisu"],
   "professionalism": ["professional", "expertise", "knowledge", "experienced", "skilled", "competent", "thorough", "detailed"],
-  "communication": ["communication", "responsive", "called", "email", "update", "informed", "explained", "transparent"],
-  "results": ["results", "outcome", "fixed", "solved", "resolved", "satisfied", "happy", "exceeded", "perfect"],
+  "communication": ["communication", "responsive", "called back", "update", "informed", "explained", "transparent"],
+  "results": ["results", "outcome", "fixed", "solved", "resolved", "exceeded", "perfect result"],
   "comfort": ["comfortable", "relaxed", "at ease", "welcoming", "warm", "inviting"],
   "speed": ["fast", "quick", "efficient", "prompt", "timely", "speedy"],
 }
 
 function detectTopics(input: string): string[] {
-  const lowerInput = input.toLowerCase()
   const detected: string[] = []
 
   for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) {
-    if (keywords.some(kw => lowerInput.includes(kw))) {
+    if (keywords.some(kw => hasWord(input, kw))) {
       detected.push(topic)
     }
   }
@@ -150,97 +189,157 @@ function detectSentiment(rating: number, input: string): "positive" | "neutral" 
   const positiveWords = ["great", "good", "love", "amazing", "awesome", "excellent", "fantastic", "wonderful", "best", "happy", "perfect", "delicious", "beautiful"]
   const negativeWords = ["bad", "terrible", "awful", "horrible", "worst", "hate", "disgusting", "rude", "slow", "dirty", "cold", "disappointed", "mediocre"]
 
-  const lower = input.toLowerCase()
-  const posCount = positiveWords.filter(w => lower.includes(w)).length
-  const negCount = negativeWords.filter(w => lower.includes(w)).length
+  const posCount = positiveWords.filter(w => hasWord(input, w)).length
+  const negCount = negativeWords.filter(w => hasWord(input, w)).length
 
   if (posCount > negCount) return "positive"
   if (negCount > posCount) return "negative"
   return "neutral"
 }
 
+// ============ CATEGORY SYSTEM ============
+
+type BusinessCategoryType = "restaurant" | "retail" | "healthcare" | "salon" | "automotive" | "services" | "general"
+
+interface CategoryNouns {
+  spot: string       // "spot" / "shop" / "practice"
+  experience: string // "meal" / "visit" / "appointment"
+  offering: string   // "menu" / "selection" / "care"
+  team: string       // "staff" / "team"
+}
+
+function normalizeCategory(category: string): BusinessCategoryType {
+  // Use includes() for prefix/substring matching against business-owner-set category strings.
+  // Order matters: more specific categories (healthcare, salon, automotive) before generic ones (retail).
+  const lower = category.toLowerCase()
+  const matchers: [string[], BusinessCategoryType][] = [
+    [["restaurant", "cafe", "bakery", "food", "dining", "bistro", "pizzeria", "grill", "diner", "brewery", "coffee shop", "eatery", "pub", "tavern", "sushi"], "restaurant"],
+    [["health", "medical", "dental", "clinic", "doctor", "hospital", "therapy", "chiropractic", "optometry", "pharmacy", "veterinar", "vet clinic"], "healthcare"],
+    [["salon", "spa", "barber", "beauty", "nail", "hair", "wax", "massage", "tattoo"], "salon"],
+    [["auto", "car ", "mechanic", "tire", "body shop", "detailing", "oil change"], "automotive"],
+    [["retail", "store", "boutique", "market", "grocery", "hardware"], "retail"],
+    [["law", "legal", "accounting", "financial", "insurance", "real estate", "consulting", "plumb", "electric", "hvac", "cleaning", "landscap", "roofing", "construction", "moving", "pest", "repair", "photography", "wedding", "event", "gym", "fitness"], "services"],
+  ]
+  for (const [keywords, cat] of matchers) {
+    if (keywords.some(kw => lower.includes(kw))) return cat
+  }
+  // Final check: "bar" and "shop" are ambiguous — check with word boundary as last resort
+  if (hasWord(category, "bar")) return "restaurant"
+  if (hasWord(category, "shop")) return "retail"
+  return "general"
+}
+
+function getCategoryNouns(cat: BusinessCategoryType): CategoryNouns {
+  switch (cat) {
+    case "restaurant": return { spot: "spot", experience: "meal", offering: "menu", team: "staff" }
+    case "retail": return { spot: "shop", experience: "shopping experience", offering: "selection", team: "staff" }
+    case "healthcare": return { spot: "practice", experience: "visit", offering: "care", team: "team" }
+    case "salon": return { spot: "salon", experience: "appointment", offering: "services", team: "team" }
+    case "automotive": return { spot: "shop", experience: "service", offering: "work", team: "team" }
+    case "services": return { spot: "company", experience: "experience", offering: "work", team: "team" }
+    default: return { spot: "place", experience: "experience", offering: "services", team: "team" }
+  }
+}
+
+function capitalizeTeam(nouns: CategoryNouns): string {
+  return nouns.team.charAt(0).toUpperCase() + nouns.team.slice(1)
+}
+
 // ============ REVIEW GENERATION ============
-
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]
-}
-
-function pickN<T>(arr: T[], n: number): T[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, n)
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
-
-// Natural sentence connectors that vary between reviews
-const TRANSITIONS = [
-  "", " ", " Also, ", " Plus, ", " And ", " On top of that, ",
-  " What really stood out was ", " I also have to mention ",
-]
-
-// ---- POSITIVE REVIEW TEMPLATES ----
-// Each template is a function that takes context and returns a sentence
-// Multiple variants per category for maximum variety
 
 type ReviewContext = {
   businessName: string
-  category: string
+  category: BusinessCategoryType
+  nouns: CategoryNouns
   entities: ExtractedEntities
   topics: string[]
   rawInput: string
   rating: number
+  inputLength: "short" | "medium" | "long"
 }
 
-const POSITIVE_OPENINGS = [
-  (ctx: ReviewContext) => `Finally tried ${ctx.businessName} and wow, I've been missing out!`,
-  (ctx: ReviewContext) => `Just had the best experience at ${ctx.businessName}. Seriously impressed.`,
-  (ctx: ReviewContext) => `${ctx.businessName} was even better than I'd hoped. So glad we came here.`,
-  (ctx: ReviewContext) => `Can't say enough good things about ${ctx.businessName}.`,
-  (ctx: ReviewContext) => `This was my first time at ${ctx.businessName} and it definitely won't be my last.`,
-  (ctx: ReviewContext) => `${ctx.businessName} is the real deal. Not overhyped at all.`,
-  (ctx: ReviewContext) => `I'm honestly shocked more people don't know about ${ctx.businessName}.`,
-  (ctx: ReviewContext) => `Went to ${ctx.businessName} last night and I'm still thinking about it.`,
-  (ctx: ReviewContext) => `If you haven't tried ${ctx.businessName} yet, you're seriously missing out.`,
-  (ctx: ReviewContext) => `We've been looking for a good ${ctx.category === "restaurant" ? "spot" : "place"} and ${ctx.businessName} nailed it.`,
-  (ctx: ReviewContext) => `${ctx.businessName} just became my new go-to. What a find!`,
-  (ctx: ReviewContext) => `Had the pleasure of visiting ${ctx.businessName} recently and it did not disappoint.`,
+// Typed template function aliases — ensures () => string is assignable to (ctx) => string
+type ReviewFn = (ctx: ReviewContext) => string
+type ResponseFn = (ctx: ResponseContext) => string
+
+function getInputLength(input: string): "short" | "medium" | "long" {
+  if (input.length < 30) return "short"
+  if (input.length < 100) return "medium"
+  return "long"
+}
+
+// ---- SHORT REVIEWS (proportional to minimal input) ----
+
+const SHORT_POSITIVE: ReviewFn[] = [
+  (ctx) => `${ctx.businessName} was great! Solid ${ctx.nouns.experience}, would definitely recommend.`,
+  (ctx) => `Really enjoyed ${ctx.businessName}. Will be back for sure.`,
+  (ctx) => `Great ${ctx.nouns.experience} at ${ctx.businessName}. Highly recommend!`,
+  (ctx) => `${ctx.businessName} delivered. Good ${ctx.nouns.experience} all around.`,
+  (ctx) => `Happy with our visit to ${ctx.businessName}. Would go back!`,
 ]
 
-const POSITIVE_4STAR_OPENINGS = [
-  (ctx: ReviewContext) => `Really enjoyed our time at ${ctx.businessName}.`,
-  (ctx: ReviewContext) => `${ctx.businessName} was great. Solid experience overall.`,
-  (ctx: ReviewContext) => `Had a really good experience at ${ctx.businessName}. Would definitely go back.`,
-  (ctx: ReviewContext) => `${ctx.businessName} is a great choice. Came in with high expectations and they delivered.`,
-  (ctx: ReviewContext) => `We had a lovely time at ${ctx.businessName}. Very happy we tried it.`,
+const SHORT_MIXED: ReviewFn[] = [
+  (ctx) => `${ctx.businessName} was okay. Nothing special but not bad either. Might try again.`,
+  (ctx) => `Decent ${ctx.nouns.experience} at ${ctx.businessName}. Some room for improvement.`,
+  (ctx) => `${ctx.businessName} was fine. Has potential but didn't quite wow me.`,
 ]
 
-// Topic-specific sentence generators (multiple variants each)
-const FOOD_QUALITY_SENTENCES = [
-  (ctx: ReviewContext) => {
+const SHORT_NEGATIVE: ReviewFn[] = [
+  (ctx) => `Disappointed with ${ctx.businessName}. Didn't meet expectations.`,
+  (ctx) => `Not a great ${ctx.nouns.experience} at ${ctx.businessName}. Hope they improve.`,
+  (ctx) => `${ctx.businessName} fell short. Can't recommend based on this visit.`,
+]
+
+// ---- POSITIVE REVIEW TEMPLATES ----
+
+const POSITIVE_OPENINGS: ReviewFn[] = [
+  (ctx) => `Finally tried ${ctx.businessName} and wow, I've been missing out!`,
+  (ctx) => `Just had the best ${ctx.nouns.experience} at ${ctx.businessName}. Seriously impressed.`,
+  (ctx) => `${ctx.businessName} was even better than I'd hoped. So glad we came here.`,
+  (ctx) => `Can't say enough good things about ${ctx.businessName}.`,
+  (ctx) => `This was my first time at ${ctx.businessName} and it definitely won't be my last.`,
+  (ctx) => `${ctx.businessName} is the real deal. Not overhyped at all.`,
+  (ctx) => `I'm honestly shocked more people don't know about ${ctx.businessName}.`,
+  (ctx) => `Went to ${ctx.businessName} and I'm still thinking about it.`,
+  (ctx) => `If you haven't tried ${ctx.businessName} yet, you're seriously missing out.`,
+  (ctx) => `We've been looking for a good ${ctx.nouns.spot} and ${ctx.businessName} nailed it.`,
+  (ctx) => `${ctx.businessName} just became my new go-to. What a find!`,
+  (ctx) => `Had the pleasure of visiting ${ctx.businessName} recently and it did not disappoint.`,
+]
+
+const POSITIVE_4STAR_OPENINGS: ReviewFn[] = [
+  (ctx) => `Really enjoyed our time at ${ctx.businessName}.`,
+  (ctx) => `${ctx.businessName} was great. Solid ${ctx.nouns.experience} overall.`,
+  (ctx) => `Had a really good ${ctx.nouns.experience} at ${ctx.businessName}. Would definitely go back.`,
+  (ctx) => `${ctx.businessName} is a great choice. Came in with high expectations and they delivered.`,
+  (ctx) => `We had a lovely time at ${ctx.businessName}. Very happy we tried it.`,
+]
+
+// Topic-specific sentence generators
+const FOOD_QUALITY_SENTENCES: ReviewFn[] = [
+  (ctx) => {
     if (ctx.entities.dishes.length > 0) {
       const dish = pickRandom(ctx.entities.dishes)
       return `The ${dish} was incredible - easily one of the best I've ever had.`
     }
     return "The food was on another level. Every bite was perfectly executed."
   },
-  (ctx: ReviewContext) => {
+  (ctx) => {
     if (ctx.entities.dishes.length > 0) {
       const dish = pickRandom(ctx.entities.dishes)
       return `Got the ${dish} and it was absolutely phenomenal. You can taste the quality.`
     }
     return "You can tell they use real, quality ingredients here. Everything tasted fresh and homemade."
   },
-  (ctx: ReviewContext) => {
+  (ctx) => {
     if (ctx.entities.dishes.length >= 2) {
       return `We tried the ${ctx.entities.dishes[0]} and the ${ctx.entities.dishes[1]} - both were outstanding.`
     }
     return "The food here is genuinely impressive. Not just good-for-the-price good, but actually great."
   },
-  (ctx: ReviewContext) => "Everything we ordered was delicious. Not a single miss on the table.",
-  (ctx: ReviewContext) => "The flavors were incredible and the presentation was beautiful. They clearly care about what they put out.",
-  (ctx: ReviewContext) => {
+  () => "Everything we ordered was delicious. Not a single miss on the table.",
+  () => "The flavors were incredible and the presentation was beautiful. They clearly care about what they put out.",
+  (ctx) => {
     if (ctx.entities.dishes.length > 0) {
       return `The ${pickRandom(ctx.entities.dishes)} alone is worth the trip. Trust me on this one.`
     }
@@ -248,24 +347,24 @@ const FOOD_QUALITY_SENTENCES = [
   },
 ]
 
-const SERVICE_SENTENCES = [
-  (ctx: ReviewContext) => {
+const SERVICE_SENTENCES: ReviewFn[] = [
+  (ctx) => {
     if (ctx.entities.people.length > 0) {
       const person = pickRandom(ctx.entities.people)
-      return `${person} was our server and made the whole experience so much better. Friendly, attentive, and genuinely great at their job.`
+      return `${person} took care of us and made the whole ${ctx.nouns.experience} so much better. Friendly, attentive, and genuinely great at their job.`
     }
-    return "The staff were fantastic - friendly and attentive without hovering. Perfect balance."
+    return `The ${ctx.nouns.team} were fantastic - friendly and attentive without hovering. Perfect balance.`
   },
-  (ctx: ReviewContext) => {
+  (ctx) => {
     if (ctx.entities.people.length > 0) {
       const person = pickRandom(ctx.entities.people)
       return `Shoutout to ${person} who took amazing care of us. Made great recommendations too.`
     }
-    return "Service was outstanding from the moment we walked in. Everyone was so welcoming."
+    return `${capitalizeTeam(ctx.nouns)} was outstanding from the moment we walked in. Everyone was so welcoming.`
   },
-  (ctx: ReviewContext) => "The team here clearly loves what they do. You can feel it in how they treat you.",
-  (ctx: ReviewContext) => "We were greeted warmly and the service stayed consistently great throughout our visit.",
-  (ctx: ReviewContext) => {
+  (ctx) => `The ${ctx.nouns.team} here clearly loves what they do. You can feel it in how they treat you.`,
+  () => "We were greeted warmly and the service stayed consistently great throughout our visit.",
+  (ctx) => {
     if (ctx.entities.people.length > 0) {
       return `${pickRandom(ctx.entities.people)} really took care of us. That kind of service is rare.`
     }
@@ -273,34 +372,34 @@ const SERVICE_SENTENCES = [
   },
 ]
 
-const AMBIANCE_SENTENCES = [
-  (ctx: ReviewContext) => {
+const AMBIANCE_SENTENCES: ReviewFn[] = [
+  (ctx) => {
     if (ctx.entities.places.length > 0) {
       return `The ${pickRandom(ctx.entities.places)} area is gorgeous. Such a great vibe.`
     }
     return "The ambiance is just right - cozy and inviting without trying too hard."
   },
-  (ctx: ReviewContext) => "Love the atmosphere here. It's got that perfect mix of casual and classy.",
-  (ctx: ReviewContext) => "The decor and lighting create such a nice mood. Great for a date night or catching up with friends.",
-  (ctx: ReviewContext) => "Beautiful space with a really warm, welcoming feel. You want to linger.",
+  () => "Love the atmosphere here. It's got that perfect mix of casual and classy.",
+  () => "The decor and lighting create such a nice mood. Great for a date night or catching up with friends.",
+  () => "Beautiful space with a really warm, welcoming feel. You want to linger.",
 ]
 
-const VALUE_SENTENCES = [
-  (ctx: ReviewContext) => "Honestly great value for what you get. The quality-to-price ratio is excellent.",
-  (ctx: ReviewContext) => "Very fairly priced for the quality. You're getting way more than you'd expect.",
-  (ctx: ReviewContext) => "Not the cheapest option out there, but absolutely worth every penny.",
-  (ctx: ReviewContext) => "Incredible value. I've paid twice as much elsewhere for half the quality.",
+const VALUE_SENTENCES: ReviewFn[] = [
+  () => "Honestly great value for what you get. The quality-to-price ratio is excellent.",
+  () => "Very fairly priced for the quality. You're getting way more than you'd expect.",
+  () => "Not the cheapest option out there, but absolutely worth every penny.",
+  () => "Incredible value. I've paid twice as much elsewhere for half the quality.",
 ]
 
-const DRINKS_SENTENCES = [
-  (ctx: ReviewContext) => {
+const DRINKS_SENTENCES: ReviewFn[] = [
+  (ctx) => {
     if (ctx.entities.drinks.length > 0) {
       return `The ${pickRandom(ctx.entities.drinks)} was perfectly made. Their drink game is strong.`
     }
     return "The drinks were excellent. Clearly someone behind the bar knows what they're doing."
   },
-  (ctx: ReviewContext) => "Great drink selection and everything was well-crafted. Not your standard fare.",
-  (ctx: ReviewContext) => {
+  () => "Great drink selection and everything was well-crafted. Not your standard fare.",
+  (ctx) => {
     if (ctx.entities.drinks.length > 0) {
       return `Tried the ${pickRandom(ctx.entities.drinks)} and it was spot-on. Will be ordering that again.`
     }
@@ -308,52 +407,52 @@ const DRINKS_SENTENCES = [
   },
 ]
 
-const SPEED_SENTENCES = [
-  (ctx: ReviewContext) => "Everything came out fast without feeling rushed. Great pacing.",
-  (ctx: ReviewContext) => "Impressed by how quick and efficient everything was. No unnecessary waiting.",
-  (ctx: ReviewContext) => "The turnaround was quick but the quality didn't suffer at all.",
+const SPEED_SENTENCES: ReviewFn[] = [
+  () => "Everything came out fast without feeling rushed. Great pacing.",
+  () => "Impressed by how quick and efficient everything was. No unnecessary waiting.",
+  () => "The turnaround was quick but the quality didn't suffer at all.",
 ]
 
-const PROFESSIONALISM_SENTENCES = [
-  (ctx: ReviewContext) => "Extremely professional from start to finish. You can tell they know their stuff.",
-  (ctx: ReviewContext) => "The level of expertise here is impressive. They explained everything clearly and delivered exactly what was promised.",
-  (ctx: ReviewContext) => "Really knowledgeable team. They took the time to answer all my questions and made me feel confident in their work.",
+const PROFESSIONALISM_SENTENCES: ReviewFn[] = [
+  () => "Extremely professional from start to finish. You can tell they know their stuff.",
+  () => "The level of expertise here is impressive. They explained everything clearly and delivered exactly what was promised.",
+  () => "Really knowledgeable team. They took the time to answer all my questions and made me feel confident in their work.",
 ]
 
-const COMMUNICATION_SENTENCES = [
-  (ctx: ReviewContext) => "Communication was excellent throughout. Always responsive and kept me in the loop.",
-  (ctx: ReviewContext) => "They were great about keeping me updated every step of the way. No surprises.",
-  (ctx: ReviewContext) => "Loved how transparent and communicative they were. That goes a long way.",
+const COMMUNICATION_SENTENCES: ReviewFn[] = [
+  () => "Communication was excellent throughout. Always responsive and kept me in the loop.",
+  () => "They were great about keeping me updated every step of the way. No surprises.",
+  () => "Loved how transparent and communicative they were. That goes a long way.",
 ]
 
-const RESULTS_SENTENCES = [
-  (ctx: ReviewContext) => "The results speak for themselves. Exceeded what I was hoping for.",
-  (ctx: ReviewContext) => "Honestly couldn't be happier with the outcome. They really delivered.",
-  (ctx: ReviewContext) => "The end result was even better than I expected. Worth every penny.",
+const RESULTS_SENTENCES: ReviewFn[] = [
+  () => "The results speak for themselves. Exceeded what I was hoping for.",
+  () => "Honestly couldn't be happier with the outcome. They really delivered.",
+  () => "The end result was even better than I expected. Worth every penny.",
 ]
 
-const POSITIVE_CLOSINGS = [
-  (ctx: ReviewContext) => "Already planning my next visit!",
-  (ctx: ReviewContext) => "Will definitely be back. Highly recommend.",
-  (ctx: ReviewContext) => "Can't wait to come back and try more!",
-  (ctx: ReviewContext) => "100% recommend. You won't be disappointed.",
-  (ctx: ReviewContext) => "Go here. Thank me later.",
-  (ctx: ReviewContext) => `If you're looking for a great ${ctx.category === "restaurant" ? "meal" : "experience"}, this is the place.`,
-  (ctx: ReviewContext) => "Already told all my friends about this place.",
-  (ctx: ReviewContext) => "This is going to be a regular spot for us now.",
-  (ctx: ReviewContext) => "Seriously, don't sleep on this place. Five stars all the way.",
-  (ctx: ReviewContext) => "Bookmarked and will be back soon!",
+const POSITIVE_CLOSINGS: ReviewFn[] = [
+  () => "Already planning my next visit!",
+  () => "Will definitely be back. Highly recommend.",
+  () => "Can't wait to come back and try more!",
+  () => "100% recommend. You won't be disappointed.",
+  () => "Go here. Thank me later.",
+  (ctx) => `If you're looking for a great ${ctx.nouns.experience}, this is the place.`,
+  () => "Already told all my friends about this place.",
+  () => "This is going to be a regular spot for us now.",
+  () => "Seriously, don't sleep on this place. Five stars all the way.",
+  () => "Bookmarked and will be back soon!",
 ]
 
-const POSITIVE_4STAR_CLOSINGS = [
-  (ctx: ReviewContext) => "Would definitely recommend and plan to return.",
-  (ctx: ReviewContext) => "Great spot. Will be back for sure.",
-  (ctx: ReviewContext) => "Really solid choice. Happy to recommend.",
-  (ctx: ReviewContext) => "Looking forward to going back!",
+const POSITIVE_4STAR_CLOSINGS: ReviewFn[] = [
+  () => "Would definitely recommend and plan to return.",
+  () => "Great spot. Will be back for sure.",
+  () => "Really solid choice. Happy to recommend.",
+  () => "Looking forward to going back!",
 ]
 
 // ---- TOPIC SENTENCE MAP ----
-const TOPIC_SENTENCE_MAP: Record<string, ((ctx: ReviewContext) => string)[]> = {
+const TOPIC_SENTENCE_MAP: Record<string, ReviewFn[]> = {
   "food quality": FOOD_QUALITY_SENTENCES,
   "service": SERVICE_SENTENCES,
   "ambiance": AMBIANCE_SENTENCES,
@@ -365,74 +464,103 @@ const TOPIC_SENTENCE_MAP: Record<string, ((ctx: ReviewContext) => string)[]> = {
   "results": RESULTS_SENTENCES,
 }
 
-// ---- MIXED REVIEW TEMPLATES ----
-const MIXED_OPENINGS = [
-  (ctx: ReviewContext) => `${ctx.businessName} was a bit of a mixed bag for us.`,
-  (ctx: ReviewContext) => `Wanted to love ${ctx.businessName} more than I did. Some things were great, others not so much.`,
-  (ctx: ReviewContext) => `Our experience at ${ctx.businessName} was okay - not bad, but not what I'd hoped for.`,
-  (ctx: ReviewContext) => `${ctx.businessName} has potential but fell a bit short on this visit.`,
+// ---- MIXED REVIEW TEMPLATES (3 star) ----
+
+const MIXED_OPENINGS: ReviewFn[] = [
+  (ctx) => `${ctx.businessName} was a bit of a mixed bag for us.`,
+  (ctx) => `Wanted to love ${ctx.businessName} more than I did. Some things were great, others not so much.`,
+  (ctx) => `Our ${ctx.nouns.experience} at ${ctx.businessName} was okay - not bad, but not what I'd hoped for.`,
+  (ctx) => `${ctx.businessName} has potential but fell a bit short on this visit.`,
 ]
 
-const MIXED_FOOD = [
-  "The food was decent but nothing that really stood out or made me want to rush back.",
-  "Food was fine - properly cooked and reasonably portioned, just nothing memorable.",
-  "Some dishes were better than others. Hit and miss overall.",
+const MIXED_FOOD: ReviewFn[] = [
+  (ctx) => {
+    if (ctx.entities.dishes.length > 0) {
+      const dish = pickRandom(ctx.entities.dishes)
+      return `The ${dish} was decent but nothing that really stood out.`
+    }
+    return "The food was decent but nothing that really stood out or made me want to rush back."
+  },
+  (ctx) => {
+    if (ctx.entities.dishes.length >= 2) {
+      return `The ${ctx.entities.dishes[0]} was okay but the ${ctx.entities.dishes[1]} was underwhelming.`
+    }
+    return "Food was fine - properly cooked and reasonably portioned, just nothing memorable."
+  },
+  () => "Some dishes were better than others. Hit and miss overall.",
 ]
 
-const MIXED_SERVICE = [
-  "Service was a bit inconsistent. Started strong but tapered off as it got busy.",
-  "Our server was nice enough but seemed overwhelmed. Took a while to get things.",
-  "Service was average. Not rude by any means, just not particularly attentive either.",
+const MIXED_SERVICE: ReviewFn[] = [
+  (ctx) => {
+    if (ctx.entities.people.length > 0) {
+      return `${pickRandom(ctx.entities.people)} was nice but things slowed down as it got busier.`
+    }
+    return "Service was a bit inconsistent. Started strong but tapered off as it got busy."
+  },
+  () => "Our server was nice enough but seemed overwhelmed. Took a while to get things.",
+  (ctx) => `${capitalizeTeam(ctx.nouns)} was average. Not rude by any means, just not particularly attentive either.`,
 ]
 
-const MIXED_WAIT_TIME = [
-  "The wait was longer than expected. Not a dealbreaker but definitely knocked it down a notch.",
-  "Had to wait quite a bit, which was frustrating since we had a reservation.",
-  "Could improve on the wait times. Everything else was acceptable.",
+const MIXED_WAIT_TIME: ReviewFn[] = [
+  () => "The wait was longer than expected. Not a dealbreaker but definitely knocked it down a notch.",
+  () => "Had to wait quite a bit, which was frustrating since we had a reservation.",
+  () => "Could improve on the wait times. Everything else was acceptable.",
 ]
 
-const MIXED_CLOSINGS = [
-  "Might give it another shot on a less busy night.",
-  "Not bad, but I've had better for the price. Could go either way on a return visit.",
-  "Has the bones of a good spot. A few tweaks would make a big difference.",
-  "Worth trying but temper your expectations a bit.",
+const MIXED_CLOSINGS: ReviewFn[] = [
+  () => "Might give it another shot on a less busy night.",
+  () => "Not bad, but I've had better for the price. Could go either way on a return visit.",
+  () => "Has the bones of a good spot. A few tweaks would make a big difference.",
+  () => "Worth trying but temper your expectations a bit.",
 ]
 
-// ---- NEGATIVE REVIEW TEMPLATES ----
-const NEGATIVE_OPENINGS = [
-  (ctx: ReviewContext) => `Really disappointed with our experience at ${ctx.businessName}.`,
-  (ctx: ReviewContext) => `I wanted to give ${ctx.businessName} a fair shot, but it fell well short.`,
-  (ctx: ReviewContext) => `Unfortunately ${ctx.businessName} was a letdown.`,
-  (ctx: ReviewContext) => `Not the experience I was hoping for at ${ctx.businessName}.`,
+// ---- NEGATIVE REVIEW TEMPLATES (1-2 star) ----
+
+const NEGATIVE_OPENINGS: ReviewFn[] = [
+  (ctx) => `Really disappointed with our ${ctx.nouns.experience} at ${ctx.businessName}.`,
+  (ctx) => `I wanted to give ${ctx.businessName} a fair shot, but it fell well short.`,
+  (ctx) => `Unfortunately ${ctx.businessName} was a letdown.`,
+  (ctx) => `Not the ${ctx.nouns.experience} I was hoping for at ${ctx.businessName}.`,
 ]
 
-const NEGATIVE_SERVICE = [
-  "The service was really lacking. Felt like we were invisible for most of our visit.",
-  "Service was poor - inattentive, slow, and seemed disinterested. Really brought the experience down.",
-  "Staff seemed overwhelmed and disorganized. We had to ask multiple times for basic things.",
+const NEGATIVE_SERVICE: ReviewFn[] = [
+  (ctx) => {
+    if (ctx.entities.people.length > 0) {
+      return `${pickRandom(ctx.entities.people)} seemed disinterested and we had to ask for basic things multiple times.`
+    }
+    return "The service was really lacking. Felt like we were invisible for most of our visit."
+  },
+  () => "Service was poor - inattentive, slow, and seemed disinterested. Really brought the experience down.",
+  (ctx) => `${capitalizeTeam(ctx.nouns)} seemed overwhelmed and disorganized. We had to ask multiple times for basic things.`,
 ]
 
-const NEGATIVE_WAIT = [
-  "The wait was unreasonable. No acknowledgment, no update, just sitting there wondering if they forgot about us.",
-  "Waited far too long at every stage - to be seated, to order, to get food, to get the check.",
+const NEGATIVE_WAIT: ReviewFn[] = [
+  () => "The wait was unreasonable. No acknowledgment, no update, just sitting there wondering if they forgot about us.",
+  () => "Waited far too long at every stage. The whole thing felt disorganized.",
 ]
 
-const NEGATIVE_FOOD = [
-  "The food was disappointing. For the prices they charge, I expected much better.",
-  "Food quality was below average. Didn't taste fresh and portions were small.",
-  "Our food came out lukewarm and didn't look anything like what was described on the menu.",
+const NEGATIVE_FOOD: ReviewFn[] = [
+  (ctx) => {
+    if (ctx.entities.dishes.length > 0) {
+      const dish = pickRandom(ctx.entities.dishes)
+      return `The ${dish} was disappointing. For the prices they charge, I expected much better.`
+    }
+    return "The food was disappointing. For the prices they charge, I expected much better."
+  },
+  () => "Food quality was below average. Didn't taste fresh and portions were small.",
+  () => "Our food came out lukewarm and didn't look anything like what was described on the menu.",
 ]
 
-const NEGATIVE_CLEANLINESS = [
-  "Cleanliness was an issue. Table wasn't properly wiped and the restroom was concerning.",
-  "The place could use a deep clean. Not what you want to see at a place that serves food.",
+const NEGATIVE_CLEANLINESS: ReviewFn[] = [
+  () => "Cleanliness was an issue. Table wasn't properly wiped and the restroom was concerning.",
+  () => "The place could use a deep clean. Not what you want to see.",
 ]
 
-const NEGATIVE_CLOSINGS = [
-  "Hope they can turn things around because the concept has potential.",
-  "Won't be rushing back anytime soon. There are better options in the area.",
-  "I'd say give it some time and check back. Right now, it's not quite there.",
-  "Sharing this so management hopefully takes notice and makes improvements.",
+const NEGATIVE_CLOSINGS: ReviewFn[] = [
+  () => "Hope they can turn things around because the concept has potential.",
+  () => "Won't be rushing back anytime soon. There are better options in the area.",
+  () => "I'd say give it some time and check back. Right now, it's not quite there.",
+  () => "Sharing this so management hopefully takes notice and makes improvements.",
 ]
 
 // ============ MAIN GENERATION FUNCTION ============
@@ -451,166 +579,212 @@ export function generateReview(input: {
   const topics = detectTopics(rawInput)
   const sentiment = detectSentiment(rating, rawInput)
   const entities = extractEntities(rawInput)
-  const category = businessCategory || "restaurant"
+  const category = normalizeCategory(businessCategory || "restaurant")
+  const nouns = getCategoryNouns(category)
+  const inputLength = getInputLength(rawInput)
 
   const ctx: ReviewContext = {
     businessName,
     category,
+    nouns,
     entities,
     topics,
     rawInput,
     rating,
+    inputLength,
   }
 
-  let parts: string[] = []
+  const parts: string[] = []
 
   if (rating >= 4) {
     // ---- POSITIVE ----
-    const openings = rating === 5 ? POSITIVE_OPENINGS : POSITIVE_4STAR_OPENINGS
-    parts.push(pickRandom(openings)(ctx))
+    if (inputLength === "short") {
+      parts.push(pickRandom(SHORT_POSITIVE)(ctx))
+    } else {
+      const openings = rating === 5 ? POSITIVE_OPENINGS : POSITIVE_4STAR_OPENINGS
+      parts.push(pickRandom(openings)(ctx))
 
-    // Add topic-specific sentences (max 3 to keep it natural)
-    const topicSentences: string[] = []
-    const relevantTopics = topics.filter(t => t !== "overall experience")
+      // Topic sentences — scale count to input length
+      const maxTopics = inputLength === "medium" ? 1 : 3
+      const topicSentences: string[] = []
+      const relevantTopics = topics.filter(t => t !== "overall experience")
 
-    for (const topic of relevantTopics.slice(0, 3)) {
-      const generators = TOPIC_SENTENCE_MAP[topic]
-      if (generators) {
-        topicSentences.push(pickRandom(generators)(ctx))
+      for (const topic of relevantTopics.slice(0, maxTopics)) {
+        const generators = TOPIC_SENTENCE_MAP[topic]
+        if (generators) {
+          topicSentences.push(pickRandom(generators)(ctx))
+        }
       }
-    }
 
-    // If no topics detected, generate a general positive line using raw input
-    if (topicSentences.length === 0) {
-      if (entities.adjectives.length > 0) {
-        const adj = pickRandom(entities.adjectives)
-        topicSentences.push(`Everything was just ${adj}. From start to finish, really well done.`)
-      } else if (rawInput.length > 20) {
-        topicSentences.push("Everything came together perfectly. You can tell they care about getting the details right.")
-      } else {
-        topicSentences.push("Really impressed across the board. Not a single thing I'd change.")
+      // No topics detected — generate a general positive line
+      if (topicSentences.length === 0) {
+        if (entities.adjectives.length > 0) {
+          const adj = pickRandom(entities.adjectives)
+          topicSentences.push(`Everything was just ${adj}. From start to finish, really well done.`)
+        } else {
+          topicSentences.push("Everything came together perfectly. You can tell they care about getting the details right.")
+        }
       }
+
+      parts.push(...topicSentences)
+
+      const closings = rating === 5 ? POSITIVE_CLOSINGS : POSITIVE_4STAR_CLOSINGS
+      parts.push(pickRandom(closings)(ctx))
     }
-
-    parts.push(...topicSentences)
-
-    // Add closing
-    const closings = rating === 5 ? POSITIVE_CLOSINGS : POSITIVE_4STAR_CLOSINGS
-    parts.push(pickRandom(closings)(ctx))
   } else if (rating === 3) {
     // ---- MIXED ----
-    parts.push(pickRandom(MIXED_OPENINGS)(ctx))
+    if (inputLength === "short") {
+      parts.push(pickRandom(SHORT_MIXED)(ctx))
+    } else {
+      parts.push(pickRandom(MIXED_OPENINGS)(ctx))
 
-    if (topics.includes("food quality")) parts.push(pickRandom(MIXED_FOOD))
-    if (topics.includes("service")) parts.push(pickRandom(MIXED_SERVICE))
-    if (topics.includes("wait time")) parts.push(pickRandom(MIXED_WAIT_TIME))
+      const maxTopics = inputLength === "medium" ? 1 : 2
+      let topicCount = 0
 
-    if (parts.length === 1) {
-      parts.push("Some aspects were fine but others need work.")
+      if (topics.includes("food quality") && topicCount < maxTopics) {
+        parts.push(pickRandom(MIXED_FOOD)(ctx))
+        topicCount++
+      }
+      if (topics.includes("service") && topicCount < maxTopics) {
+        parts.push(pickRandom(MIXED_SERVICE)(ctx))
+        topicCount++
+      }
+      if (topics.includes("wait time") && topicCount < maxTopics) {
+        parts.push(pickRandom(MIXED_WAIT_TIME)(ctx))
+        topicCount++
+      }
+
+      if (topicCount === 0) {
+        parts.push("Some aspects were fine but others need work.")
+      }
+
+      parts.push(pickRandom(MIXED_CLOSINGS)(ctx))
     }
-
-    parts.push(pickRandom(MIXED_CLOSINGS))
   } else {
     // ---- NEGATIVE ----
-    parts.push(pickRandom(NEGATIVE_OPENINGS)(ctx))
+    if (inputLength === "short") {
+      parts.push(pickRandom(SHORT_NEGATIVE)(ctx))
+    } else {
+      parts.push(pickRandom(NEGATIVE_OPENINGS)(ctx))
 
-    if (topics.includes("service")) parts.push(pickRandom(NEGATIVE_SERVICE))
-    if (topics.includes("wait time")) parts.push(pickRandom(NEGATIVE_WAIT))
-    if (topics.includes("food quality")) parts.push(pickRandom(NEGATIVE_FOOD))
-    if (topics.includes("cleanliness")) parts.push(pickRandom(NEGATIVE_CLEANLINESS))
+      const maxTopics = inputLength === "medium" ? 1 : 3
+      let topicCount = 0
 
-    if (parts.length === 1) {
-      parts.push("The overall experience just didn't meet the standard you'd expect.")
+      if (topics.includes("service") && topicCount < maxTopics) {
+        parts.push(pickRandom(NEGATIVE_SERVICE)(ctx))
+        topicCount++
+      }
+      if (topics.includes("wait time") && topicCount < maxTopics) {
+        parts.push(pickRandom(NEGATIVE_WAIT)(ctx))
+        topicCount++
+      }
+      if (topics.includes("food quality") && topicCount < maxTopics) {
+        parts.push(pickRandom(NEGATIVE_FOOD)(ctx))
+        topicCount++
+      }
+      if (topics.includes("cleanliness") && topicCount < maxTopics) {
+        parts.push(pickRandom(NEGATIVE_CLEANLINESS)(ctx))
+        topicCount++
+      }
+
+      if (topicCount === 0) {
+        parts.push("The overall experience just didn't meet the standard you'd expect.")
+      }
+
+      parts.push(pickRandom(NEGATIVE_CLOSINGS)(ctx))
     }
-
-    parts.push(pickRandom(NEGATIVE_CLOSINGS))
   }
 
-  // Join with natural spacing
   const rawReview = parts.join(" ")
+  const generatedReview = cleanupText(rawReview)
 
-  // Apply content refinement framework
-  const generatedReview = applyContentFramework(rawReview)
-
-  return {
-    generatedReview,
-    sentiment,
-    topics,
-  }
+  return { generatedReview, sentiment, topics }
 }
 
 // ============ RESPONSE GENERATION ============
 
-const RESPONSE_POSITIVE = [
-  (ctx: ResponseContext) => `${ctx.greeting}! Thank you so much for the wonderful review! It really means a lot to our team.`,
-  (ctx: ResponseContext) => `${ctx.greeting}! Wow, this made our day! Thank you for taking the time to share your experience.`,
-  (ctx: ResponseContext) => `${ctx.greeting}! We're so happy to hear this! Reviews like yours are what keep us going.`,
-  (ctx: ResponseContext) => `${ctx.greeting}! Thank you for the incredible feedback! We're thrilled you had such a great time.`,
-  (ctx: ResponseContext) => `${ctx.greeting}! This is the kind of review that puts a huge smile on our faces. Thank you!`,
-]
-
-const RESPONSE_NEUTRAL = [
-  (ctx: ResponseContext) => `${ctx.greeting}, thank you for your honest feedback. We truly appreciate you taking the time.`,
-  (ctx: ResponseContext) => `${ctx.greeting}, we appreciate your candid review. Your feedback helps us improve.`,
-  (ctx: ResponseContext) => `${ctx.greeting}, thanks for sharing your experience with us. We take all feedback seriously.`,
-]
-
-const RESPONSE_NEGATIVE = [
-  (ctx: ResponseContext) => `${ctx.greeting}, we're sincerely sorry about your experience. This is not the standard we hold ourselves to.`,
-  (ctx: ResponseContext) => `${ctx.greeting}, thank you for bringing this to our attention. We're genuinely sorry we fell short.`,
-  (ctx: ResponseContext) => `${ctx.greeting}, we owe you an apology. Your experience is not what we strive for, and we want to make it right.`,
-]
-
 type ResponseContext = {
   greeting: string
   businessName: string
+  nouns: CategoryNouns
   topics: string[]
   rating: number
+  entities: ExtractedEntities
 }
 
-const RESPONSE_FOOD_POSITIVE = [
-  "We're so glad you enjoyed the food! Our kitchen team puts so much passion into every plate.",
-  "Hearing that the food hit the mark makes our chef's day. We're all about quality ingredients and care.",
+const RESPONSE_POSITIVE: ResponseFn[] = [
+  (ctx) => `${ctx.greeting}! Thank you so much for the wonderful review! It really means a lot to our ${ctx.nouns.team}.`,
+  (ctx) => `${ctx.greeting}! Wow, this made our day! Thank you for taking the time to share your experience.`,
+  (ctx) => `${ctx.greeting}! We're so happy to hear this! Reviews like yours are what keep us going.`,
+  (ctx) => `${ctx.greeting}! Thank you for the incredible feedback! We're thrilled you had such a great ${ctx.nouns.experience}.`,
+  (ctx) => `${ctx.greeting}! This is the kind of review that puts a huge smile on our faces. Thank you!`,
 ]
 
-const RESPONSE_SERVICE_POSITIVE = [
-  "We'll make sure to share your kind words with our team - they'll be thrilled!",
-  "Our staff works hard to create a great experience, and knowing it showed means everything.",
+const RESPONSE_NEUTRAL: ResponseFn[] = [
+  (ctx) => `${ctx.greeting}, thank you for your honest feedback. We truly appreciate you taking the time.`,
+  (ctx) => `${ctx.greeting}, we appreciate your candid review. Your feedback helps us improve.`,
+  (ctx) => `${ctx.greeting}, thanks for sharing your experience with us. We take all feedback seriously.`,
 ]
 
-const RESPONSE_AMBIANCE_POSITIVE = [
-  "We put a lot of thought into creating the right atmosphere, so it's wonderful that you felt it!",
+const RESPONSE_NEGATIVE: ResponseFn[] = [
+  (ctx) => `${ctx.greeting}, we're sincerely sorry about your experience. This is not the standard we hold ourselves to.`,
+  (ctx) => `${ctx.greeting}, thank you for bringing this to our attention. We're genuinely sorry we fell short.`,
+  (ctx) => `${ctx.greeting}, we owe you an apology. Your experience is not what we strive for, and we want to make it right.`,
 ]
 
-const RESPONSE_WAIT_NEGATIVE = [
-  "We hear you on the wait time. We've been working on improving our flow and are making changes to ensure this improves.",
-  "The wait is something we're actively addressing. We're adding resources during peak hours to cut down on this.",
+const RESPONSE_FOOD_POSITIVE: ResponseFn[] = [
+  (ctx) => {
+    if (ctx.entities.dishes.length > 0) {
+      return `So glad you enjoyed the ${pickRandom(ctx.entities.dishes)}! Our kitchen team puts so much passion into every plate.`
+    }
+    return "We're so glad you enjoyed the food! Our kitchen team puts so much passion into every plate."
+  },
+  () => "Hearing that the food hit the mark makes our chef's day. We're all about quality ingredients and care.",
 ]
 
-const RESPONSE_SERVICE_NEGATIVE = [
-  "We've shared your feedback with our team and are taking steps to ensure everyone receives the attentive service they deserve.",
-  "This isn't the level of service we expect from our team. We've addressed this directly and are implementing additional training.",
+const RESPONSE_SERVICE_POSITIVE: ResponseFn[] = [
+  (ctx) => {
+    if (ctx.entities.people.length > 0) {
+      return `We'll make sure ${pickRandom(ctx.entities.people)} sees your kind words - they'll be thrilled!`
+    }
+    return "We'll make sure to share your kind words with our team - they'll be thrilled!"
+  },
+  (ctx) => `Our ${ctx.nouns.team} works hard to create a great experience, and knowing it showed means everything.`,
 ]
 
-const RESPONSE_FOOD_NEGATIVE = [
-  "We hold our food to high standards, and hearing this tells us we need to do better. We've flagged this with our kitchen team.",
-  "The food quality you described is not acceptable to us. We're reviewing our processes to make sure this doesn't happen again.",
+const RESPONSE_AMBIANCE_POSITIVE: ResponseFn[] = [
+  () => "We put a lot of thought into creating the right atmosphere, so it's wonderful that you felt it!",
 ]
 
-const RESPONSE_CLEANLINESS_NEGATIVE = [
-  "Cleanliness is a non-negotiable for us. We've already taken corrective action based on your feedback.",
+const RESPONSE_WAIT_NEGATIVE: ResponseFn[] = [
+  () => "We hear you on the wait time. We've been working on improving our flow and are making changes to ensure this improves.",
+  () => "The wait is something we're actively addressing. We're adding resources during peak hours to cut down on this.",
 ]
 
-const RESPONSE_CLOSINGS_POSITIVE = [
-  (ctx: ResponseContext) => `We can't wait to welcome you back to ${ctx.businessName}!`,
-  (ctx: ResponseContext) => `See you next time! We'll have your favorite ready.`,
-  (ctx: ResponseContext) => `Looking forward to your next visit. We've got plenty more for you to try!`,
+const RESPONSE_SERVICE_NEGATIVE: ResponseFn[] = [
+  (ctx) => `We've shared your feedback with our ${ctx.nouns.team} and are taking steps to ensure everyone receives the attentive service they deserve.`,
+  (ctx) => `This isn't the level of service we expect from our ${ctx.nouns.team}. We've addressed this directly and are implementing additional training.`,
 ]
 
-const RESPONSE_CLOSINGS_NEGATIVE = [
-  (ctx: ResponseContext) => `We'd love the chance to make this right. Please reach out to us directly so we can discuss this further.`,
-  (ctx: ResponseContext) => `If you're willing to give us another chance, we'd love to show you what ${ctx.businessName} is really about. Feel free to contact us directly.`,
-  (ctx: ResponseContext) => `Your feedback is genuinely helping us improve. We hope you'll consider giving us another opportunity.`,
+const RESPONSE_FOOD_NEGATIVE: ResponseFn[] = [
+  () => "We hold our food to high standards, and hearing this tells us we need to do better. We've flagged this with our kitchen team.",
+  () => "The food quality you described is not acceptable to us. We're reviewing our processes to make sure this doesn't happen again.",
+]
+
+const RESPONSE_CLEANLINESS_NEGATIVE: ResponseFn[] = [
+  () => "Cleanliness is a non-negotiable for us. We've already taken corrective action based on your feedback.",
+]
+
+const RESPONSE_CLOSINGS_POSITIVE: ResponseFn[] = [
+  (ctx) => `We can't wait to welcome you back to ${ctx.businessName}!`,
+  () => "See you next time!",
+  (ctx) => `Looking forward to your next visit. We've got plenty more for you to try!`,
+]
+
+const RESPONSE_CLOSINGS_NEGATIVE: ResponseFn[] = [
+  () => "We'd love the chance to make this right. Please reach out to us directly so we can discuss this further.",
+  (ctx) => `If you're willing to give us another chance, we'd love to show you what ${ctx.businessName} is really about. Feel free to contact us directly.`,
+  () => "Your feedback is genuinely helping us improve. We hope you'll consider giving us another opportunity.",
 ]
 
 export function generateResponse(input: {
@@ -618,129 +792,69 @@ export function generateResponse(input: {
   rating: number
   businessName: string
   customerName?: string
+  businessCategory?: string
 }): string {
-  const { review, rating, businessName, customerName } = input
+  const { review, rating, businessName, customerName, businessCategory } = input
   const topics = detectTopics(review)
+  const entities = extractEntities(review)
   const greeting = customerName ? `Hi ${customerName}` : "Hi there"
+  const category = normalizeCategory(businessCategory || "restaurant")
+  const nouns = getCategoryNouns(category)
 
-  const ctx: ResponseContext = { greeting, businessName, topics, rating }
+  const ctx: ResponseContext = { greeting, businessName, nouns, topics, rating, entities }
 
   const parts: string[] = []
 
   if (rating >= 4) {
     parts.push(pickRandom(RESPONSE_POSITIVE)(ctx))
 
-    if (topics.includes("food quality")) parts.push(pickRandom(RESPONSE_FOOD_POSITIVE))
-    if (topics.includes("service")) parts.push(pickRandom(RESPONSE_SERVICE_POSITIVE))
-    if (topics.includes("ambiance")) parts.push(pickRandom(RESPONSE_AMBIANCE_POSITIVE))
+    if (topics.includes("food quality")) parts.push(pickRandom(RESPONSE_FOOD_POSITIVE)(ctx))
+    if (topics.includes("service")) parts.push(pickRandom(RESPONSE_SERVICE_POSITIVE)(ctx))
+    if (topics.includes("ambiance")) parts.push(pickRandom(RESPONSE_AMBIANCE_POSITIVE)(ctx))
 
     parts.push(pickRandom(RESPONSE_CLOSINGS_POSITIVE)(ctx))
   } else if (rating === 3) {
     parts.push(pickRandom(RESPONSE_NEUTRAL)(ctx))
 
-    if (topics.includes("wait time")) parts.push(pickRandom(RESPONSE_WAIT_NEGATIVE))
-    if (topics.includes("service")) parts.push(pickRandom(RESPONSE_SERVICE_NEGATIVE))
+    if (topics.includes("wait time")) parts.push(pickRandom(RESPONSE_WAIT_NEGATIVE)(ctx))
+    if (topics.includes("service")) parts.push(pickRandom(RESPONSE_SERVICE_NEGATIVE)(ctx))
 
-    parts.push(`We'd love the chance to give you a better experience next time at ${businessName}. Please don't hesitate to reach out to us directly!`)
+    parts.push(`We'd love the chance to give you a better ${nouns.experience} next time at ${businessName}. Please don't hesitate to reach out to us directly!`)
   } else {
     parts.push(pickRandom(RESPONSE_NEGATIVE)(ctx))
 
-    if (topics.includes("wait time")) parts.push(pickRandom(RESPONSE_WAIT_NEGATIVE))
-    if (topics.includes("service")) parts.push(pickRandom(RESPONSE_SERVICE_NEGATIVE))
-    if (topics.includes("food quality")) parts.push(pickRandom(RESPONSE_FOOD_NEGATIVE))
-    if (topics.includes("cleanliness")) parts.push(pickRandom(RESPONSE_CLEANLINESS_NEGATIVE))
+    if (topics.includes("wait time")) parts.push(pickRandom(RESPONSE_WAIT_NEGATIVE)(ctx))
+    if (topics.includes("service")) parts.push(pickRandom(RESPONSE_SERVICE_NEGATIVE)(ctx))
+    if (topics.includes("food quality")) parts.push(pickRandom(RESPONSE_FOOD_NEGATIVE)(ctx))
+    if (topics.includes("cleanliness")) parts.push(pickRandom(RESPONSE_CLEANLINESS_NEGATIVE)(ctx))
 
     parts.push(pickRandom(RESPONSE_CLOSINGS_NEGATIVE)(ctx))
   }
 
-  return applyContentFramework(parts.join(" "))
+  return cleanupText(parts.join(" "))
 }
 
-// ============ CONTENT REFINEMENT FRAMEWORK ============
-// 5-layer quality system to ensure generated content reads naturally
-// and avoids AI-sounding patterns
+// ============ TEXT CLEANUP ============
+// Lightweight formatting fixes only — templates are hand-written
+// and don't need LLM-cliché filtering
 
-const BANNED_WORDS_MAP: Record<string, string> = {
-  "unlock": "discover",
-  "unleash": "use",
-  "elevate": "improve",
-  "delve": "look into",
-  "tapestry": "mix",
-  "myriad": "many",
-  "beacon": "example",
-  "landscape": "space",
-  "realm": "area",
-  "testament": "proof",
-  "embark": "start",
-  "pinnacle": "peak",
-  "paradigm": "approach",
-  "nuance": "detail",
-  "foster": "build",
-  "robust": "strong",
-  "leverage": "use",
-  "plethora": "lots of",
-  "seamless": "smooth",
-  "thrive": "do well",
-  "endeavor": "effort",
-  "embody": "represent",
-  "resonate": "connect",
-  "exquisite": "excellent",
-  "bespoke": "custom",
-  "curated": "selected",
-  "impeccable": "excellent",
-  "artisanal": "handmade",
-  "luxurious": "comfortable",
-  "opulent": "fancy",
-  "meticulously": "carefully",
-  "transcend": "go beyond",
-  "unparalleled": "unmatched",
-  "discerning": "selective",
-  "captivating": "interesting",
-}
-
-const BANNED_PHRASES: [RegExp, string][] = [
-  [/above and beyond/gi, "really took care of us"],
-  [/blown away/gi, "seriously impressed"],
-  [/exceeded every expectation/gi, "better than I hoped"],
-  [/top.notch/gi, "outstanding"],
-  [/hidden gem/gi, "great find"],
-  [/game.changer/gi, "really stands out"],
-  [/world.class/gi, "really great"],
-  [/one.of.a.kind/gi, "unique"],
-  [/out of this world/gi, "incredible"],
-  [/second to none/gi, "the best around"],
-  [/to die for/gi, "absolutely delicious"],
-  [/Whether you're/gi, "If you're"],
-  [/In today's/gi, "Right now,"],
-  [/It's not just/gi, "It's"],
-  [/more than just/gi, "a great"],
-  [/at the end of the day/gi, "ultimately"],
-  [/takes it to the next level/gi, "makes it even better"],
-]
-
-function applyContentFramework(text: string): string {
+function cleanupText(text: string): string {
   let result = text
 
-  // Layer 1: Replace banned words
-  for (const [banned, replacement] of Object.entries(BANNED_WORDS_MAP)) {
-    const regex = new RegExp(`\\b${banned}\\b`, "gi")
-    result = result.replace(regex, replacement)
-  }
+  // Fix double spaces
+  result = result.replace(/\s{2,}/g, " ")
 
-  // Layer 2: Replace banned phrases
-  for (const [pattern, replacement] of BANNED_PHRASES) {
-    result = result.replace(pattern, replacement)
-  }
+  // Capitalize after periods
+  result = result.replace(/\.\s+([a-z])/g, (_, letter) => `. ${letter.toUpperCase()}`)
 
-  // Layer 3: Remove em-dashes (replace with periods or commas)
+  // Remove em-dashes if any sneak in
   result = result.replace(/ — /g, ". ")
   result = result.replace(/—/g, ", ")
 
-  // Layer 4: Fix double spaces and capitalize after periods
-  result = result.replace(/\s{2,}/g, " ")
-  result = result.replace(/\.\s+([a-z])/g, (_, letter) => `. ${letter.toUpperCase()}`)
-
   return result.trim()
 }
+
+// Keep export names for backward compatibility
+const applyContentFramework = cleanupText
 
 export { detectTopics, detectSentiment, extractEntities, applyContentFramework }

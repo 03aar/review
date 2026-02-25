@@ -1,22 +1,28 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import {
   Bell,
   Star,
   MessageSquare,
   AlertTriangle,
-  TrendingUp,
-  Users,
-  CreditCard,
-  Megaphone,
   Check,
   X,
 } from "lucide-react"
+import { timeAgo } from "@/lib/utils"
+
+interface ReviewData {
+  id: string
+  rating: number
+  customerName: string | null
+  finalReview: string | null
+  generatedReview: string | null
+  sentiment: string | null
+  createdAt: string
+}
 
 interface Notification {
   id: string
-  type: "review" | "negative" | "response" | "milestone" | "team" | "billing" | "campaign" | "system"
   title: string
   description: string
   time: string
@@ -25,85 +31,92 @@ interface Notification {
   color: string
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "negative",
-    title: "Negative Review Alert",
-    description: "A 2-star review was just posted on Google. Immediate attention recommended.",
-    time: "2 min ago",
-    read: false,
-    icon: AlertTriangle,
-    color: "bg-red-100 text-red-600",
-  },
-  {
-    id: "2",
-    type: "review",
-    title: "New 5-Star Review",
-    description: '"Amazing experience! The staff was incredibly helpful..." - Sarah M.',
-    time: "15 min ago",
-    read: false,
-    icon: Star,
-    color: "bg-[#FFE566]/30 text-[#1a3a2a]",
-  },
-  {
-    id: "3",
-    type: "response",
-    title: "Response Reminder",
-    description: "3 reviews are waiting for responses (oldest: 2 days ago).",
-    time: "1 hour ago",
-    read: false,
-    icon: MessageSquare,
-    color: "bg-[#D4CCFF]/30 text-[#1a3a2a]",
-  },
-  {
-    id: "4",
-    type: "milestone",
-    title: "Milestone Reached!",
-    description: "Congratulations! You've collected 100 reviews this month.",
-    time: "3 hours ago",
-    read: true,
-    icon: TrendingUp,
-    color: "bg-[#C8F5D4]/50 text-[#2d6a4f]",
-  },
-  {
-    id: "5",
-    type: "campaign",
-    title: "Campaign Completed",
-    description: '"Q1 Review Push" campaign finished. 45 of 120 requests converted.',
-    time: "5 hours ago",
-    read: true,
-    icon: Megaphone,
-    color: "bg-[#FFDAB5]/30 text-[#1a3a2a]",
-  },
-  {
-    id: "6",
-    type: "team",
-    title: "Team Member Joined",
-    description: "Jordan Kim accepted your invitation and joined as an Admin.",
-    time: "Yesterday",
-    read: true,
-    icon: Users,
-    color: "bg-[#C8F5D4]/30 text-[#2d6a4f]",
-  },
-  {
-    id: "7",
-    type: "billing",
-    title: "Payment Successful",
-    description: "Your Growth plan payment of $79.00 was processed successfully.",
-    time: "2 days ago",
-    read: true,
-    icon: CreditCard,
-    color: "bg-[#eef8e6] text-[#2d6a4f]",
-  },
-]
+function buildNotifications(reviews: ReviewData[]): Notification[] {
+  const notifications: Notification[] = []
 
-export function NotificationCenter() {
+  // Negative review alerts (rating <= 2)
+  const negativeReviews = reviews.filter((r) => r.rating <= 2)
+  for (const r of negativeReviews.slice(0, 3)) {
+    notifications.push({
+      id: `neg-${r.id}`,
+      title: "Negative Review Alert",
+      description: `${r.rating}-star review from ${r.customerName || "Anonymous"}. Consider responding promptly.`,
+      time: timeAgo(r.createdAt),
+      read: false,
+      icon: AlertTriangle,
+      color: "bg-red-100 text-red-600",
+    })
+  }
+
+  // Recent positive reviews (5 stars)
+  const recentPositive = reviews.filter((r) => r.rating >= 4).slice(0, 3)
+  for (const r of recentPositive) {
+    const text = r.finalReview || r.generatedReview || ""
+    const preview = text.length > 60 ? text.slice(0, 60) + "..." : text
+    notifications.push({
+      id: `rev-${r.id}`,
+      title: `New ${r.rating}-Star Review`,
+      description: preview
+        ? `"${preview}" - ${r.customerName || "Anonymous"}`
+        : `From ${r.customerName || "Anonymous"}`,
+      time: timeAgo(r.createdAt),
+      read: true,
+      icon: Star,
+      color: "bg-[#FFE566]/30 text-[#1a3a2a]",
+    })
+  }
+
+  // Count of reviews that might need responses (neutral/negative)
+  const needResponse = reviews.filter((r) => r.rating <= 3).length
+  if (needResponse > 0) {
+    notifications.push({
+      id: "response-reminder",
+      title: "Response Reminder",
+      description: `${needResponse} review${needResponse > 1 ? "s" : ""} with 3 stars or below may benefit from a response.`,
+      time: "Now",
+      read: false,
+      icon: MessageSquare,
+      color: "bg-[#D4CCFF]/30 text-[#1a3a2a]",
+    })
+  }
+
+  return notifications
+}
+
+export function NotificationCenter({ businessId }: { businessId?: string }) {
   const [open, setOpen] = useState(false)
-  const [notifications, setNotifications] = useState(mockNotifications)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [loaded, setLoaded] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const fetchNotifications = useCallback(async () => {
+    if (!businessId) return
+    try {
+      const res = await fetch(`/api/reviews?businessId=${businessId}&pageSize=20`)
+      if (!res.ok) return
+      const data = await res.json()
+      const reviews: ReviewData[] = data?.data ?? (Array.isArray(data) ? data : [])
+      setNotifications(buildNotifications(reviews))
+    } catch {
+      // Silently fail — notifications are non-critical
+    } finally {
+      setLoaded(true)
+    }
+  }, [businessId])
+
+  // Fetch when dropdown opens
+  useEffect(() => {
+    if (open && !loaded) {
+      fetchNotifications()
+    }
+  }, [open, loaded, fetchNotifications])
+
+  // Re-fetch when businessId changes
+  useEffect(() => {
+    setLoaded(false)
+    setNotifications([])
+  }, [businessId])
 
   // Close on outside click
   useEffect(() => {
@@ -118,6 +131,9 @@ export function NotificationCenter() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [open])
 
+  const visibleNotifications = notifications.filter((n) => !dismissed.has(n.id))
+  const unreadCount = visibleNotifications.filter((n) => !n.read).length
+
   function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }
@@ -129,12 +145,11 @@ export function NotificationCenter() {
   }
 
   function dismissNotification(id: string) {
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    setDismissed((prev) => new Set(prev).add(id))
   }
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bell Button */}
       <button
         onClick={() => setOpen(!open)}
         className="relative p-2 rounded-lg hover:bg-[#eef8e6] transition-colors"
@@ -148,10 +163,8 @@ export function NotificationCenter() {
         )}
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-xl border border-[#b8dca8] shadow-lg z-50 overflow-hidden">
-          {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#b8dca8]">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-[#1a3a2a]">Notifications</h3>
@@ -172,15 +185,16 @@ export function NotificationCenter() {
             )}
           </div>
 
-          {/* Notifications List */}
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {visibleNotifications.length === 0 ? (
               <div className="px-4 py-8 text-center">
                 <Bell className="h-8 w-8 text-[#b8dca8] mx-auto mb-2" />
-                <p className="text-sm text-[#5a6b5a]">You&apos;re all caught up!</p>
+                <p className="text-sm text-[#5a6b5a]">
+                  {!businessId ? "Set up your business to get started" : "No notifications yet"}
+                </p>
               </div>
             ) : (
-              notifications.map((notification) => (
+              visibleNotifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={`flex gap-3 px-4 py-3 border-b border-[#eef8e6] last:border-0 hover:bg-[#eef8e6]/50 transition-colors ${
@@ -222,13 +236,6 @@ export function NotificationCenter() {
                 </div>
               ))
             )}
-          </div>
-
-          {/* Footer */}
-          <div className="px-4 py-2.5 border-t border-[#b8dca8] bg-[#eef8e6]/50">
-            <button className="text-xs text-[#2d6a4f] font-medium hover:underline w-full text-center">
-              View all notifications
-            </button>
           </div>
         </div>
       )}

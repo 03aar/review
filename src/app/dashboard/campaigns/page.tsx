@@ -1,371 +1,414 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { useBusinessContext } from "../layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
+import { Label } from "@/components/ui/label"
 import {
-  Megaphone,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import {
   Send,
-  TrendingUp,
-  MessageSquare,
-  Mail,
-  QrCode,
   Plus,
-  Calendar,
-  Eye,
-  MousePointerClick,
-  BarChart3,
+  Users,
+  Mail,
+  Clock,
+  CheckCircle2,
+  Link as LinkIcon,
+  Copy,
+  Loader2,
+  Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
+import { timeAgo } from "@/lib/utils"
 
-interface Campaign {
+interface ReviewRequest {
   id: string
-  name: string
-  type: "sms" | "email" | "qr"
-  status: "active" | "paused" | "completed"
-  sent: number
-  opened: number
-  converted: number
+  customerName: string | null
+  customerEmail: string | null
+  customerPhone: string | null
+  method: string
+  status: string
+  sentAt: string | null
+  completedAt: string | null
   createdAt: string
 }
 
-const initialCampaigns: Campaign[] = [
-  {
-    id: "camp-1",
-    name: "Weekend Follow-up Blast",
-    type: "sms",
-    status: "active",
-    sent: 342,
-    opened: 278,
-    converted: 124,
-    createdAt: "2026-02-10",
-  },
-  {
-    id: "camp-2",
-    name: "Post-Visit Thank You",
-    type: "email",
-    status: "active",
-    sent: 518,
-    opened: 347,
-    converted: 163,
-    createdAt: "2026-02-05",
-  },
-  {
-    id: "camp-3",
-    name: "Table Card QR Campaign",
-    type: "qr",
-    status: "paused",
-    sent: 210,
-    opened: 158,
-    converted: 72,
-    createdAt: "2026-01-22",
-  },
-  {
-    id: "camp-4",
-    name: "January Newsletter Push",
-    type: "email",
-    status: "completed",
-    sent: 1024,
-    opened: 614,
-    converted: 287,
-    createdAt: "2026-01-08",
-  },
-]
+interface CustomerEntry {
+  name: string
+  email: string
+}
 
 export default function CampaignsPage() {
   const { business } = useBusinessContext()
-  const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns)
-  const [campaignName, setCampaignName] = useState("")
-  const [selectedType, setSelectedType] = useState<"sms" | "email" | "qr" | null>(null)
+  const [requests, setRequests] = useState<ReviewRequest[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [showDialog, setShowDialog] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [customers, setCustomers] = useState<CustomerEntry[]>([
+    { name: "", email: "" },
+  ])
 
-  const stats = useMemo(() => {
-    const activeCampaigns = campaigns.filter((c) => c.status === "active").length
-    const totalSent = campaigns.reduce((sum, c) => sum + c.sent, 0)
-    const totalConverted = campaigns.reduce((sum, c) => sum + c.converted, 0)
-    const avgConversion = totalSent > 0 ? ((totalConverted / totalSent) * 100).toFixed(1) : "0.0"
-    return { activeCampaigns, totalSent, avgConversion }
-  }, [campaigns])
+  const reviewUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/r/${business.slug}`
+      : `/r/${business.slug}`
 
-  function handleCreateCampaign(e: React.FormEvent) {
-    e.preventDefault()
+  useEffect(() => {
+    fetch(`/api/campaigns?businessId=${business.id}`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed")
+        return r.json()
+      })
+      .then((data) => setRequests(data.data ?? []))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [business.id])
 
-    if (!campaignName.trim()) {
-      toast.error("Please enter a campaign name")
+  function addCustomerRow() {
+    if (customers.length >= 50) {
+      toast.error("Maximum 50 customers per batch")
       return
     }
-    if (!selectedType) {
-      toast.error("Please select a campaign type")
+    setCustomers((prev) => [...prev, { name: "", email: "" }])
+  }
+
+  function removeCustomerRow(index: number) {
+    setCustomers((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function updateCustomer(index: number, field: "name" | "email", value: string) {
+    setCustomers((prev) =>
+      prev.map((c, i) => (i === index ? { ...c, [field]: value } : c))
+    )
+  }
+
+  async function handleSendCampaign() {
+    const validCustomers = customers.filter(
+      (c) => c.name.trim() || c.email.trim()
+    )
+    if (validCustomers.length === 0) {
+      toast.error("Add at least one customer")
       return
     }
 
-    const newCampaign: Campaign = {
-      id: `camp-${Date.now()}`,
-      name: campaignName.trim(),
-      type: selectedType,
-      status: "active",
-      sent: 0,
-      opened: 0,
-      converted: 0,
-      createdAt: new Date().toISOString().split("T")[0],
-    }
+    setSending(true)
+    try {
+      const res = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: business.id,
+          customers: validCustomers.map((c) => ({
+            name: c.name.trim() || null,
+            email: c.email.trim() || null,
+            method: "email",
+          })),
+        }),
+      })
 
-    setCampaigns((prev) => [newCampaign, ...prev])
-    setCampaignName("")
-    setSelectedType(null)
-    toast.success(`Campaign "${newCampaign.name}" created for ${business.name}`)
-  }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Failed to create campaign")
+        return
+      }
 
-  function getTypeIcon(type: string) {
-    switch (type) {
-      case "sms":
-        return <MessageSquare className="h-3.5 w-3.5" />
-      case "email":
-        return <Mail className="h-3.5 w-3.5" />
-      case "qr":
-        return <QrCode className="h-3.5 w-3.5" />
-      default:
-        return null
-    }
-  }
+      const data = await res.json()
+      toast.success(`${data.created} review request${data.created > 1 ? "s" : ""} created!`)
 
-  function getTypeLabel(type: string) {
-    switch (type) {
-      case "sms":
-        return "SMS"
-      case "email":
-        return "Email"
-      case "qr":
-        return "QR Code"
-      default:
-        return type
+      // Refresh the list
+      setShowDialog(false)
+      setCustomers([{ name: "", email: "" }])
+      const refreshRes = await fetch(`/api/campaigns?businessId=${business.id}`)
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json()
+        setRequests(refreshData.data ?? [])
+      }
+    } catch {
+      toast.error("Failed to create campaign")
+    } finally {
+      setSending(false)
     }
   }
 
-  function getStatusStyle(status: string) {
-    switch (status) {
-      case "active":
-        return "bg-[#d4f0c0] text-[#2d6a4f] hover:bg-[#d4f0c0]"
-      case "paused":
-        return "bg-amber-100 text-amber-800 hover:bg-amber-100"
-      case "completed":
-        return "bg-blue-100 text-blue-700 hover:bg-blue-100"
-      default:
-        return ""
-    }
+  function handleCopyLink() {
+    navigator.clipboard.writeText(reviewUrl)
+    toast.success("Review link copied!")
   }
 
-  function getConversionRate(campaign: Campaign): number {
-    if (campaign.sent === 0) return 0
-    return Math.round((campaign.converted / campaign.sent) * 100)
+  const stats = {
+    total: requests.length,
+    pending: requests.filter((r) => r.status === "pending").length,
+    sent: requests.filter((r) => r.status === "sent").length,
+    completed: requests.filter((r) => r.status === "completed").length,
   }
 
-  const typeOptions: { value: "sms" | "email" | "qr"; label: string; icon: React.ReactNode }[] = [
-    { value: "sms", label: "SMS", icon: <MessageSquare className="h-4 w-4" /> },
-    { value: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
-    { value: "qr", label: "QR Code", icon: <QrCode className="h-4 w-4" /> },
-  ]
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold text-[#1a3a2a]">Campaigns</h1>
+        <div className="flex items-center justify-center h-32">
+          <Loader2 className="h-6 w-6 animate-spin text-[#2d6a4f]" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold text-[#1a3a2a]">Campaigns</h1>
+        <Card className="border-[#b8dca8]">
+          <CardContent className="py-12 text-center">
+            <p className="text-red-600 font-medium">Failed to load campaigns</p>
+            <Button variant="outline" className="mt-3" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[#1a3a2a]">Campaigns</h1>
-        <p className="text-[#5a6b5a]">
-          Create and manage review request campaigns for {business.name}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1a3a2a]">Campaigns</h1>
+          <p className="text-[#5a6b5a]">
+            Send review requests to your customers
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-[#b8dca8]"
+            onClick={handleCopyLink}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copy Review Link
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
+            onClick={() => setShowDialog(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Campaign
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="border-[#b8dca8]">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-[#5a6b5a]">Active Campaigns</span>
-              <Megaphone className="h-5 w-5 text-[#2d6a4f]" />
-            </div>
-            <p className="text-2xl font-bold text-[#1a3a2a]">{stats.activeCampaigns}</p>
+          <CardContent className="pt-4 pb-3 text-center">
+            <p className="text-2xl font-bold text-[#1a3a2a]">{stats.total}</p>
+            <p className="text-xs text-[#5a6b5a]">Total Requests</p>
           </CardContent>
         </Card>
         <Card className="border-[#b8dca8]">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-[#5a6b5a]">Total Sent</span>
-              <Send className="h-5 w-5 text-[#2d6a4f]" />
-            </div>
-            <p className="text-2xl font-bold text-[#1a3a2a]">{stats.totalSent.toLocaleString()}</p>
+          <CardContent className="pt-4 pb-3 text-center">
+            <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
+            <p className="text-xs text-[#5a6b5a]">Pending</p>
           </CardContent>
         </Card>
         <Card className="border-[#b8dca8]">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-[#5a6b5a]">Avg Conversion Rate</span>
-              <TrendingUp className="h-5 w-5 text-[#2d6a4f]" />
-            </div>
-            <p className="text-2xl font-bold text-[#1a3a2a]">{stats.avgConversion}%</p>
+          <CardContent className="pt-4 pb-3 text-center">
+            <p className="text-2xl font-bold text-blue-600">{stats.sent}</p>
+            <p className="text-xs text-[#5a6b5a]">Sent</p>
+          </CardContent>
+        </Card>
+        <Card className="border-[#b8dca8]">
+          <CardContent className="pt-4 pb-3 text-center">
+            <p className="text-2xl font-bold text-[#2d6a4f]">{stats.completed}</p>
+            <p className="text-xs text-[#5a6b5a]">Completed</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Create Campaign */}
+      {/* Review Link Card */}
       <Card className="border-[#b8dca8]">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2 text-[#1a3a2a]">
-            <Plus className="h-4 w-4" />
-            Create Campaign
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreateCampaign} className="space-y-4">
-            <div>
-              <label
-                htmlFor="campaign-name"
-                className="block text-sm font-medium mb-1.5 text-[#1a3a2a]"
-              >
-                Campaign Name
-              </label>
-              <Input
-                id="campaign-name"
-                type="text"
-                placeholder="e.g. Spring Review Drive"
-                value={campaignName}
-                onChange={(e) => setCampaignName(e.target.value)}
-                className="border-[#b8dca8]"
-                maxLength={100}
-              />
-            </div>
-
-            <div>
-              <p className="text-sm font-medium mb-2 text-[#1a3a2a]">Campaign Type</p>
-              <div className="flex flex-wrap gap-2">
-                {typeOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() =>
-                      setSelectedType((prev) => (prev === option.value ? null : option.value))
-                    }
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
-                      selectedType === option.value
-                        ? "bg-[#1a3a2a] text-[#e4f5d6] border-[#1a3a2a]"
-                        : "bg-white text-[#5a6b5a] border-[#b8dca8] hover:bg-[#eef8e6] hover:text-[#1a3a2a]"
-                    }`}
-                  >
-                    {option.icon}
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="gap-2 bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
-            >
-              <Plus className="h-4 w-4" />
-              Create Campaign
+        <CardContent className="pt-5 pb-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <LinkIcon className="h-4 w-4 text-[#2d6a4f]" />
+            <span className="text-sm font-medium text-[#1a3a2a]">Your review link:</span>
+            <code className="text-sm bg-[#eef8e6] px-3 py-1 rounded border border-[#b8dca8] font-mono text-[#1a3a2a]">
+              {reviewUrl}
+            </code>
+            <Button variant="outline" size="sm" className="gap-1 border-[#b8dca8]" onClick={handleCopyLink}>
+              <Copy className="h-3 w-3" />
+              Copy
             </Button>
-          </form>
+          </div>
+          <p className="text-xs text-[#5a6b5a] mt-2">
+            Share this link with customers via email, text, or QR code. They&apos;ll be guided through the review process.
+          </p>
         </CardContent>
       </Card>
 
-      {/* Active Campaigns List */}
+      {/* Requests List */}
       <Card className="border-[#b8dca8]">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2 text-[#1a3a2a]">
-            <BarChart3 className="h-4 w-4" />
-            Active Campaigns
+            <Users className="h-4 w-4" />
+            Review Requests ({requests.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {campaigns.length === 0 ? (
-            <div className="text-center py-10">
-              <Megaphone className="h-10 w-10 mx-auto mb-3 text-[#b8dca8]" />
-              <p className="font-medium text-[#1a3a2a]">No campaigns yet</p>
+          {requests.length === 0 ? (
+            <div className="py-8 text-center">
+              <Send className="h-10 w-10 text-[#b8dca8] mx-auto mb-3" />
+              <p className="font-medium text-[#1a3a2a]">No requests yet</p>
               <p className="text-sm text-[#5a6b5a] mt-1">
-                Create your first campaign above to start collecting reviews
+                Create a campaign to start collecting reviews from your customers
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {campaigns.map((campaign) => {
-                const conversionRate = getConversionRate(campaign)
-                return (
-                  <div
-                    key={campaign.id}
-                    className="border border-[#b8dca8] rounded-lg p-4 bg-white hover:shadow-sm transition-shadow"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-semibold text-[#1a3a2a]">
-                          {campaign.name}
-                        </h3>
-                        <Badge
-                          variant="outline"
-                          className="gap-1 border-[#b8dca8] text-[#5a6b5a]"
-                        >
-                          {getTypeIcon(campaign.type)}
-                          {getTypeLabel(campaign.type)}
-                        </Badge>
-                        <Badge className={getStatusStyle(campaign.status)}>
-                          {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-[#5a6b5a] shrink-0">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {campaign.createdAt}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 mb-3">
-                      <div className="flex items-center gap-2">
-                        <Send className="h-3.5 w-3.5 text-[#2d6a4f]" />
-                        <div>
-                          <p className="text-xs text-[#5a6b5a]">Sent</p>
-                          <p className="text-sm font-semibold text-[#1a3a2a]">
-                            {campaign.sent.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Eye className="h-3.5 w-3.5 text-[#2d6a4f]" />
-                        <div>
-                          <p className="text-xs text-[#5a6b5a]">Opened</p>
-                          <p className="text-sm font-semibold text-[#1a3a2a]">
-                            {campaign.opened.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MousePointerClick className="h-3.5 w-3.5 text-[#2d6a4f]" />
-                        <div>
-                          <p className="text-xs text-[#5a6b5a]">Converted</p>
-                          <p className="text-sm font-semibold text-[#1a3a2a]">
-                            {campaign.converted.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Progress
-                        value={conversionRate}
-                        className="h-2 flex-1 bg-[#eef8e6]"
-                      />
-                      <span className="text-xs font-medium text-[#2d6a4f] shrink-0 w-10 text-right">
-                        {conversionRate}%
-                      </span>
-                    </div>
+            <div className="space-y-2">
+              {requests.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#b8dca8] hover:bg-[#eef8e6]/50"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#eef8e6] flex items-center justify-center text-xs font-medium text-[#1a3a2a]">
+                    {r.customerName ? r.customerName[0].toUpperCase() : "?"}
                   </div>
-                )
-              })}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#1a3a2a] truncate">
+                      {r.customerName || "Unknown"}
+                    </p>
+                    <p className="text-xs text-[#5a6b5a] truncate">
+                      {r.customerEmail || r.customerPhone || "No contact info"}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={r.status === "completed" ? "default" : "secondary"}
+                    className={
+                      r.status === "completed"
+                        ? "bg-[#d4f0c0] text-[#2d6a4f]"
+                        : r.status === "sent"
+                          ? "bg-blue-100 text-blue-700"
+                          : ""
+                    }
+                  >
+                    {r.status}
+                  </Badge>
+                  <div className="flex items-center gap-1 text-xs text-[#5a6b5a]">
+                    <Clock className="h-3 w-3" />
+                    {timeAgo(r.createdAt)}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* New Campaign Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-[#2d6a4f]" />
+              New Campaign
+            </DialogTitle>
+            <DialogDescription>
+              Add customers to send review requests. They&apos;ll receive a link to submit their review.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {customers.map((c, i) => (
+              <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Name</Label>
+                  <Input
+                    value={c.name}
+                    onChange={(e) => updateCustomer(i, "name", e.target.value)}
+                    placeholder="Customer name"
+                    maxLength={100}
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Email</Label>
+                  <Input
+                    type="email"
+                    value={c.email}
+                    onChange={(e) => updateCustomer(i, "email", e.target.value)}
+                    placeholder="customer@email.com"
+                    maxLength={255}
+                  />
+                </div>
+                {customers.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeCustomerRow(i)}
+                    className="shrink-0 mb-0.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                  </Button>
+                )}
+              </div>
+            ))}
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-[#b8dca8]"
+              onClick={addCustomerRow}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Customer
+            </Button>
+
+            <div className="bg-[#eef8e6] rounded-lg p-3 border border-[#b8dca8]">
+              <div className="flex items-center gap-2 mb-1">
+                <Mail className="h-3.5 w-3.5 text-[#2d6a4f]" />
+                <span className="text-xs font-medium text-[#1a3a2a]">Note</span>
+              </div>
+              <p className="text-xs text-[#5a6b5a]">
+                Review requests are recorded for tracking. Email delivery requires email integration (coming in a future update).
+                For now, share your review link directly: <code className="bg-white px-1 rounded">/r/{business.slug}</code>
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendCampaign}
+              disabled={sending}
+              className="gap-1.5 bg-[#1a3a2a] hover:bg-[#0f2a1c] text-[#e4f5d6]"
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Create Requests
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
