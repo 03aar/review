@@ -581,12 +581,19 @@ export default function LandingPage() {
             <div>
               <h4 className="text-xs font-bold uppercase tracking-widest text-[#1a2e1a]/30 mb-4" style={font}>Legal</h4>
               <ul className="space-y-3">
-                {["Privacy Policy", "Terms of Service", "Cookie Policy"].map((i) => <li key={i}><a href="#" className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i}</a></li>)}
+                {[
+                  { label: "Privacy Policy", href: "/privacy" },
+                  { label: "Terms of Service", href: "/terms" },
+                  { label: "Cookie Policy", href: "/cookies" },
+                  { label: "Acceptable Use", href: "/acceptable-use" },
+                  { label: "Security", href: "/security" },
+                  { label: "DPA", href: "/dpa" },
+                ].map((i) => <li key={i.label}><Link href={i.href} className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i.label}</Link></li>)}
               </ul>
             </div>
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t-2 border-[#1a2e1a]/10 gap-4">
-            <p className="text-xs text-[#1a2e1a]/30">&copy; 2026 ReviewForge. All rights reserved.</p>
+            <p className="text-xs text-[#1a2e1a]/30">&copy; 2026 Schroeder Technologies. All rights reserved. ReviewForge is a registered trademark.</p>
             <div className="flex items-center gap-6">
               {["Twitter", "LinkedIn", "Instagram"].map((s) => <a key={s} href="#" className="text-xs text-[#1a2e1a]/30 hover:text-[#1a2e1a] transition-colors">{s}</a>)}
             </div>
