@@ -3,13 +3,20 @@ import { NextRequest, NextResponse } from "next/server"
 const PROTECTED_ROUTES = ["/dashboard"]
 const AUTH_ROUTES = ["/login", "/register"]
 
-// Better Auth uses "better-auth.session_token" as the default cookie name
-const SESSION_COOKIE_NAME = "better-auth.session_token"
+// Better Auth cookie names:
+// - HTTP (localhost):  "better-auth.session_token"
+// - HTTPS (production): "__Secure-better-auth.session_token"
+const SESSION_COOKIE_NAMES = [
+  "__Secure-better-auth.session_token",
+  "better-auth.session_token",
+]
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  const sessionToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
+  const sessionToken = SESSION_COOKIE_NAMES
+    .map((name) => req.cookies.get(name)?.value)
+    .find(Boolean)
   const isAuthenticated = !!sessionToken
 
   // Protected routes: redirect to login if not authenticated
