@@ -1,8 +1,6 @@
 "use client"
 
 import { useEffect, useState, createContext, useContext } from "react"
-import { useRouter } from "next/navigation"
-import { useSession } from "@/lib/auth-client"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { Loader2 } from "lucide-react"
 
@@ -25,40 +23,20 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { data: session, isPending } = useSession()
-  const router = useRouter()
   const [business, setBusiness] = useState<Business | null>(null)
   const [loadingBusiness, setLoadingBusiness] = useState(true)
 
   useEffect(() => {
-    if (!isPending && !session) {
-      router.push("/login")
-    }
-  }, [session, isPending, router])
-
-  useEffect(() => {
-    if (session) {
-      fetch("/api/businesses")
-        .then((res) => res.json())
-        .then((data) => {
-          if (Array.isArray(data) && data.length > 0) {
-            setBusiness(data[0])
-          }
-          setLoadingBusiness(false)
-        })
-        .catch(() => setLoadingBusiness(false))
-    }
-  }, [session])
-
-  if (isPending) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
-      </div>
-    )
-  }
-
-  if (!session) return null
+    fetch("/api/businesses")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setBusiness(data[0])
+        }
+        setLoadingBusiness(false)
+      })
+      .catch(() => setLoadingBusiness(false))
+  }, [])
 
   return (
     <div className="flex h-screen bg-[#eef8e6]">

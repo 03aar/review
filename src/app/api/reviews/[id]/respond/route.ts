@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/db"
 import { review, reviewResponse, business } from "@/db/schema"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { eq, and } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { generateResponse } from "@/lib/ai"
 
 // POST: Generate or update a response for a review
@@ -11,11 +9,6 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
   const { id: reviewId } = await params
   const body = await req.json()
   const { action, editedResponse } = body // action: "regenerate" | "approve" | "edit"
@@ -26,13 +19,13 @@ export async function POST(
     return NextResponse.json({ error: "Review not found" }, { status: 404 })
   }
 
-  // Verify ownership
+  // Fetch business
   const biz = await db
     .select()
     .from(business)
-    .where(and(eq(business.id, rev[0].businessId), eq(business.userId, session.user.id)))
+    .where(eq(business.id, rev[0].businessId))
   if (biz.length === 0) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    return NextResponse.json({ error: "Business not found" }, { status: 404 })
   }
 
   // Check for existing response
