@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Star, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react"
@@ -23,7 +22,6 @@ function getPasswordStrength(pw: string): { label: string; color: string; width:
 }
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -84,7 +82,9 @@ export default function RegisterPage() {
         return
       }
       toast.success("Account created! Setting up your dashboard...")
-      router.push("/dashboard")
+      // Full page reload ensures the session cookie is sent with the request.
+      // router.push() does a soft navigation that can miss newly set cookies.
+      window.location.href = "/dashboard"
     } catch {
       setErrors({ form: "Something went wrong. Please try again." })
       setLoading(false)

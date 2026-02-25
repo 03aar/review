@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Star, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react"
@@ -36,7 +36,6 @@ function LoginSkeleton() {
 }
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -79,7 +78,9 @@ function LoginForm() {
       toast.success("Signed in successfully!")
       const raw = searchParams.get("callbackUrl") || "/dashboard"
       const callbackUrl = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard"
-      router.push(callbackUrl)
+      // Full page reload ensures the session cookie is sent with the request.
+      // router.push() does a soft navigation that can miss newly set cookies.
+      window.location.href = callbackUrl
     } catch {
       setErrors({ form: "Something went wrong. Please try again." })
       setLoading(false)
