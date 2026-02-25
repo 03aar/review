@@ -12,6 +12,8 @@ import {
   Link as LinkIcon,
   Copy,
   Check,
+  Megaphone,
+  Trophy,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -22,6 +24,8 @@ const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/reviews", label: "Reviews", icon: MessageSquare },
   { href: "/dashboard/insights", label: "Insights", icon: BarChart3 },
+  { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/dashboard/competitors", label: "Competitors", icon: Trophy },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 

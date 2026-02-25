@@ -4,8 +4,10 @@ import { useEffect, useState } from "react"
 import { useBusinessContext } from "./layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star, TrendingUp, MessageSquare, ThumbsUp, Clock, ExternalLink, Link as LinkIcon } from "lucide-react"
+import { Star, TrendingUp, MessageSquare, ThumbsUp, Clock, ExternalLink, Link as LinkIcon, Shield, AlertTriangle } from "lucide-react"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { timeAgo } from "@/lib/utils"
 
 interface ReviewData {
@@ -16,6 +18,7 @@ interface ReviewData {
   customerName: string | null
   sentiment: string | null
   platform: string
+  postedToPlatform: boolean
   createdAt: string
 }
 
@@ -77,6 +80,24 @@ export default function DashboardOverview() {
     return now.getTime() - d.getTime() < 7 * 24 * 60 * 60 * 1000
   })
 
+  // Reputation Score calculation
+  const totalReviews = insights?.totalReviews || 0
+  const averageRating = insights?.averageRating || 0
+  const positivePercentage = insights?.sentimentBreakdown
+    ? (insights.sentimentBreakdown.positive / Math.max(totalReviews, 1)) * 100
+    : 0
+  const reputationBase = (averageRating / 5) * 50
+  const reputationVolume = (Math.min(totalReviews, 50) / 50) * 20
+  const reputationSentiment = (positivePercentage / 100) * 20
+  const reputationRecency = (Math.min(thisWeekReviews.length, 5) / 5) * 10
+  const reputationScore = Math.round(reputationBase + reputationVolume + reputationSentiment + reputationRecency)
+  const reputationColor = reputationScore < 40 ? "#ef4444" : reputationScore <= 70 ? "#eab308" : "#22c55e"
+
+  // Needs Attention: low-rated reviews not yet responded to
+  const needsAttentionReviews = reviews.filter(
+    (r) => r.rating <= 2 && r.postedToPlatform === false
+  )
+
   return (
     <div className="space-y-6">
       <div>
@@ -87,7 +108,7 @@ export default function DashboardOverview() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="border-[#b8dca8]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -157,7 +178,116 @@ export default function DashboardOverview() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="border-[#b8dca8]">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Reputation Score</p>
+                <p className="text-3xl font-bold" style={{ color: reputationColor }}>
+                  {reputationScore}
+                </p>
+              </div>
+              <div className="relative flex items-center justify-center">
+                <svg width="48" height="48" viewBox="0 0 48 48">
+                  <circle
+                    cx="24"
+                    cy="24"
+                    r="20"
+                    fill="none"
+                    stroke="#eef8e6"
+                    strokeWidth="4"
+                  />
+                  <circle
+                    cx="24"
+                    cy="24"
+                    r="20"
+                    fill="none"
+                    stroke={reputationColor}
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(reputationScore / 100) * 125.66} 125.66`}
+                    transform="rotate(-90 24 24)"
+                  />
+                </svg>
+                <Shield className="h-4 w-4 absolute" style={{ color: reputationColor }} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Needs Attention */}
+      <Card className="border-[#f59e0b]/30 bg-[#fffbeb]">
+        <CardHeader>
+          <CardTitle className="text-base text-[#92400e] flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-[#f59e0b]" />
+            Needs Attention
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {needsAttentionReviews.length === 0 ? (
+            <div className="text-center py-4">
+              <div className="inline-flex items-center gap-2 text-[#16a34a] bg-[#dcfce7] px-4 py-2 rounded-full">
+                <ThumbsUp className="h-4 w-4" />
+                <span className="text-sm font-medium">All caught up!</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {needsAttentionReviews.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex gap-4 p-3 rounded-lg border border-[#f59e0b]/20 bg-white"
+                >
+                  <div className="shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-[#fef3c7] flex items-center justify-center text-[#92400e] font-medium text-sm">
+                      {r.customerName
+                        ? r.customerName[0].toUpperCase()
+                        : "?"}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm text-[#1a3a2a]">
+                        {r.customerName || "Anonymous"}
+                      </span>
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-3 w-3 ${
+                              i < r.rating
+                                ? "text-[#f59e0b] fill-[#f59e0b]"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs text-[#5a6b5a]">
+                        {timeAgo(r.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {r.finalReview || r.generatedReview}
+                    </p>
+                    <div className="mt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs border-[#f59e0b]/40 text-[#92400e] hover:bg-[#fef3c7]"
+                        onClick={() => toast.success("Auto-response queued for " + (r.customerName || "Anonymous"))}
+                      >
+                        Auto-respond
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Rating Distribution */}
       {insights && insights.totalReviews > 0 && (
