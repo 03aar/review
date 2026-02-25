@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback, createContext, useContext } from "react"
 import { Sidebar } from "@/components/dashboard/sidebar"
-import { Loader2, Menu, X } from "lucide-react"
+import { SearchCommand, SearchTrigger } from "@/components/dashboard/search-command"
+import { NotificationCenter } from "@/components/dashboard/notification-center"
+import { Loader2, Menu, X, CheckCircle2 } from "lucide-react"
 import { generateSlug } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -121,11 +123,25 @@ export default function DashboardLayout({
               <Menu className="h-5 w-5 text-[#1a3a2a]" />
             )}
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
             <div className="w-7 h-7 bg-[#1a3a2a] rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-xs">R</span>
             </div>
             <span className="text-sm font-bold text-[#1a3a2a]">ReviewForge</span>
+          </div>
+          <SearchTrigger />
+          <NotificationCenter />
+        </div>
+
+        {/* Desktop Header Bar */}
+        <div className="hidden md:flex sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-[#b8dca8] px-6 py-2.5 items-center justify-between">
+          <div />
+          <div className="flex items-center gap-3">
+            <SearchTrigger />
+            <NotificationCenter />
+            <div className="w-8 h-8 rounded-full bg-[#d4f0c0] flex items-center justify-center text-xs font-bold text-[#1a3a2a]">
+              {business?.name?.[0]?.toUpperCase() || "U"}
+            </div>
           </div>
         </div>
 
@@ -138,6 +154,8 @@ export default function DashboardLayout({
             <SetupBusiness onCreated={handleBusinessCreated} />
           ) : (
             <BusinessContext.Provider value={{ business, updateBusiness }}>
+              <SearchCommand />
+              <OnboardingChecklist businessName={business.name} />
               {children}
             </BusinessContext.Provider>
           )}
@@ -263,6 +281,126 @@ function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
             AI transforms their feedback into polished reviews
           </li>
         </ul>
+      </div>
+    </div>
+  )
+}
+
+const ONBOARDING_KEY = "reviewforge_onboarding"
+
+function OnboardingChecklist({ businessName }: { businessName: string }) {
+  const [dismissed, setDismissed] = useState(true)
+  const [completed, setCompleted] = useState<string[]>([])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const stored = localStorage.getItem(ONBOARDING_KEY)
+    if (stored) {
+      try {
+        const data = JSON.parse(stored)
+        if (data.dismissed) {
+          setDismissed(true)
+          return
+        }
+        setCompleted(data.completed || [])
+        setDismissed(false)
+      } catch {
+        setDismissed(false)
+      }
+    } else {
+      setDismissed(false)
+      setCompleted(["create-account"])
+    }
+  }, [])
+
+  function toggleStep(id: string) {
+    setCompleted((prev) => {
+      const next = prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+      if (typeof window !== "undefined") {
+        localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ dismissed: false, completed: next }))
+      }
+      return next
+    })
+  }
+
+  function dismiss() {
+    setDismissed(true)
+    if (typeof window !== "undefined") {
+      localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ dismissed: true, completed }))
+    }
+  }
+
+  const steps = [
+    { id: "create-account", label: "Create your account", time: "Done!" },
+    { id: "connect-google", label: "Connect Google Business Profile", time: "3 min" },
+    { id: "import-reviews", label: "Import existing reviews", time: "Automatic" },
+    { id: "generate-qr", label: "Generate your QR code", time: "1 min" },
+    { id: "first-request", label: "Send your first review request", time: "2 min" },
+    { id: "setup-responses", label: "Set up AI auto-responses", time: "5 min" },
+  ]
+
+  const completedCount = completed.length
+  const totalSteps = steps.length
+  const progress = Math.round((completedCount / totalSteps) * 100)
+
+  if (dismissed || completedCount >= totalSteps) return null
+
+  return (
+    <div className="mb-6 bg-white rounded-xl border border-[#b8dca8] p-5">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-semibold text-[#1a3a2a]">
+            Get started with ReviewForge
+          </h3>
+          <p className="text-xs text-[#5a6b5a] mt-0.5">
+            {completedCount}/{totalSteps} steps complete
+          </p>
+        </div>
+        <button
+          onClick={dismiss}
+          className="text-xs text-[#5a6b5a] hover:text-[#1a3a2a] transition-colors"
+        >
+          Dismiss
+        </button>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full h-2 bg-[#eef8e6] rounded-full mb-4 overflow-hidden">
+        <div
+          className="h-full bg-[#2d6a4f] rounded-full transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <div className="space-y-2">
+        {steps.map((step) => {
+          const isCompleted = completed.includes(step.id)
+          return (
+            <button
+              key={step.id}
+              onClick={() => toggleStep(step.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                isCompleted
+                  ? "bg-[#eef8e6] text-[#2d6a4f]"
+                  : "hover:bg-[#eef8e6]/50 text-[#1a3a2a]"
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${
+                  isCompleted
+                    ? "bg-[#2d6a4f] border-[#2d6a4f]"
+                    : "border-[#b8dca8]"
+                }`}
+              >
+                {isCompleted && <CheckCircle2 className="h-3 w-3 text-white" />}
+              </div>
+              <span className={`flex-1 ${isCompleted ? "line-through opacity-60" : "font-medium"}`}>
+                {step.label}
+              </span>
+              <span className="text-[10px] text-[#b8dca8] shrink-0">{step.time}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

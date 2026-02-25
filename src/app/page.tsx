@@ -569,13 +569,23 @@ export default function LandingPage() {
             <div>
               <h4 className="text-xs font-bold uppercase tracking-widest text-[#1a2e1a]/30 mb-4" style={font}>Product</h4>
               <ul className="space-y-3">
-                {["Features", "Pricing", "How it works", "Integrations"].map((i) => <li key={i}><a href="#" className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i}</a></li>)}
+                {[
+                  { label: "Features", href: "/features" },
+                  { label: "Pricing", href: "/pricing" },
+                  { label: "Customers", href: "/customers" },
+                  { label: "Help Center", href: "/help" },
+                ].map((i) => <li key={i.label}><Link href={i.href} className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i.label}</Link></li>)}
               </ul>
             </div>
             <div>
               <h4 className="text-xs font-bold uppercase tracking-widest text-[#1a2e1a]/30 mb-4" style={font}>Company</h4>
               <ul className="space-y-3">
-                {["About", "Blog", "Careers", "Contact"].map((i) => <li key={i}><a href="#" className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i}</a></li>)}
+                {[
+                  { label: "About", href: "/about" },
+                  { label: "Blog", href: "/blog" },
+                  { label: "Contact", href: "/contact" },
+                  { label: "Careers", href: "/about#careers" },
+                ].map((i) => <li key={i.label}><Link href={i.href} className="text-sm text-[#1a2e1a]/60 hover:text-[#1a2e1a] transition-colors">{i.label}</Link></li>)}
               </ul>
             </div>
             <div>
