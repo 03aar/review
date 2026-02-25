@@ -14,19 +14,59 @@ import {
   Check,
   Megaphone,
   Trophy,
+  DollarSign,
+  Users,
+  Heart,
+  Shield,
+  Share2,
+  Target,
+  Radio,
+  AlertTriangle,
+  Zap,
+  Code,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
-const navItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/reviews", label: "Reviews", icon: MessageSquare },
-  { href: "/dashboard/insights", label: "Insights", icon: BarChart3 },
-  { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
-  { href: "/dashboard/competitors", label: "Competitors", icon: Trophy },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+const navSections = [
+  {
+    label: "Main",
+    items: [
+      { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+      { href: "/dashboard/reviews", label: "Reviews", icon: MessageSquare },
+      { href: "/dashboard/insights", label: "Insights", icon: BarChart3 },
+      { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
+    ],
+  },
+  {
+    label: "Growth",
+    items: [
+      { href: "/dashboard/roi", label: "ROI & Impact", icon: DollarSign },
+      { href: "/dashboard/goals", label: "Goals", icon: Target },
+      { href: "/dashboard/marketing", label: "Marketing", icon: Share2 },
+      { href: "/dashboard/optimization", label: "Optimization", icon: Zap },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { href: "/dashboard/staff", label: "Staff", icon: Users },
+      { href: "/dashboard/competitors", label: "Competitors", icon: Trophy },
+      { href: "/dashboard/monitoring", label: "Monitoring", icon: Radio },
+      { href: "/dashboard/crisis", label: "Crisis", icon: AlertTriangle },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { href: "/dashboard/recovery", label: "Recovery", icon: Heart },
+      { href: "/dashboard/protection", label: "Protection", icon: Shield },
+      { href: "/dashboard/developers", label: "Developers", icon: Code },
+      { href: "/dashboard/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ]
 
 export function Sidebar({
@@ -105,30 +145,39 @@ export function Sidebar({
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Dashboard navigation">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-[#d4f0c0] text-[#1a3a2a]"
-                  : "text-[#4a7a5a] hover:bg-[#eef8e6] hover:text-[#1a3a2a]"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          )
-        })}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto" aria-label="Dashboard navigation">
+        {navSections.map((section) => (
+          <div key={section.label} className="mb-4">
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#b8dca8]">
+              {section.label}
+            </p>
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const isActive =
+                  item.href === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname.startsWith(item.href)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-[#d4f0c0] text-[#1a3a2a]"
+                        : "text-[#4a7a5a] hover:bg-[#eef8e6] hover:text-[#1a3a2a]"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Sign Out */}
