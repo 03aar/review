@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/db"
-import { business } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { DEMO_BUSINESS } from "@/lib/demo-data"
 
 export async function GET(
   req: NextRequest,
@@ -9,23 +7,17 @@ export async function GET(
 ) {
   const { slug } = await params
 
-  const result = await db
-    .select({
-      id: business.id,
-      name: business.name,
-      slug: business.slug,
-      category: business.category,
-      description: business.description,
-      logoUrl: business.logoUrl,
-      primaryColor: business.primaryColor,
-      googleConnected: business.googleConnected,
-    })
-    .from(business)
-    .where(eq(business.slug, slug))
-
-  if (result.length === 0) {
+  if (slug !== DEMO_BUSINESS.slug) {
     return NextResponse.json({ error: "Business not found" }, { status: 404 })
   }
 
-  return NextResponse.json(result[0])
+  return NextResponse.json({
+    id: DEMO_BUSINESS.id,
+    name: DEMO_BUSINESS.name,
+    slug: DEMO_BUSINESS.slug,
+    category: DEMO_BUSINESS.category,
+    description: DEMO_BUSINESS.description,
+    primaryColor: DEMO_BUSINESS.primaryColor,
+    googleConnected: DEMO_BUSINESS.googleConnected,
+  })
 }
