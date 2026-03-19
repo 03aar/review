@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { DEMO_BUSINESS } from "@/lib/demo-data"
+import { db } from "@/db"
+import * as schema from "@/db/schema"
+import { eq } from "drizzle-orm"
 
 export async function GET(
   req: NextRequest,
@@ -11,19 +13,24 @@ export async function GET(
     return NextResponse.json({ error: "Business not found" }, { status: 404 })
   }
 
-  // Accept any valid slug - return demo business data with the slug's name
-  // This allows user-created businesses to work with the review collection page
-  const businessName = slug
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase())
+  const businesses = await db
+    .select()
+    .from(schema.business)
+    .where(eq(schema.business.slug, slug))
+    .limit(1)
 
+  if (businesses.length === 0) {
+    return NextResponse.json({ error: "Business not found" }, { status: 404 })
+  }
+
+  const biz = businesses[0]
   return NextResponse.json({
-    id: DEMO_BUSINESS.id,
-    name: slug === DEMO_BUSINESS.slug ? DEMO_BUSINESS.name : businessName,
-    slug,
-    category: DEMO_BUSINESS.category,
-    description: DEMO_BUSINESS.description,
-    primaryColor: DEMO_BUSINESS.primaryColor,
-    googleConnected: DEMO_BUSINESS.googleConnected,
+    id: biz.id,
+    name: biz.name,
+    slug: biz.slug,
+    category: biz.category,
+    description: biz.description,
+    primaryColor: biz.primaryColor,
+    googleConnected: biz.googleConnected,
   })
 }

@@ -1,13 +1,24 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Star, ArrowRight } from "lucide-react"
+import { Star, ArrowRight, Loader2 } from "lucide-react"
+import { signIn } from "@/lib/auth-client"
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#FFF8F0]"><Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" /></div>}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirect = searchParams.get("redirect") || "/dashboard"
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -19,9 +30,22 @@ export default function LoginPage() {
       return
     }
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 500))
-    toast.success("Signed in successfully!")
-    router.push("/dashboard")
+
+    try {
+      const result = await signIn.email({ email, password })
+
+      if (result.error) {
+        toast.error(result.error.message || "Invalid email or password")
+        setLoading(false)
+        return
+      }
+
+      toast.success("Signed in successfully!")
+      router.push(redirect)
+    } catch {
+      toast.error("Something went wrong. Please try again.")
+      setLoading(false)
+    }
   }
 
   return (

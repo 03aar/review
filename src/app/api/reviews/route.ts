@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { DEMO_REVIEWS, DEMO_BUSINESS } from "@/lib/demo-data"
+import { db } from "@/db"
+import * as schema from "@/db/schema"
+import { eq, desc } from "drizzle-orm"
 import { generateReview } from "@/lib/ai"
+import { getSession } from "@/lib/auth-server"
 
 export async function GET(req: NextRequest) {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const searchParams = req.nextUrl.searchParams
   const businessId = searchParams.get("businessId")
 
@@ -10,7 +18,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "businessId is required" }, { status: 400 })
   }
 
-  return NextResponse.json(DEMO_REVIEWS)
+  // Verify the business belongs to this user
+  const businesses = await db
+    .select({ id: schema.business.id })
+    .from(schema.business)
+    .where(eq(schema.business.id, businessId))
+    .limit(1)
+
+  if (businesses.length === 0) {
+    return NextResponse.json({ error: "Business not found" }, { status: 404 })
+  }
+
+  const reviews = await db
+    .select()
+    .from(schema.review)
+    .where(eq(schema.review.businessId, businessId))
+    .orderBy(desc(schema.review.createdAt))
+
+  // Convert dates to ISO strings for JSON serialization
+  const serialized = reviews.map((r) => ({
+    ...r,
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+  }))
+
+  return NextResponse.json(serialized)
 }
 
 export async function POST(req: NextRequest) {
@@ -20,6 +51,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
+
   const { businessId, rawInput, rawInputType, customerName, customerEmail, platform, source } = body
   const rating = Number(body.rating)
 
@@ -31,31 +63,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "rating must be an integer between 1 and 5" }, { status: 400 })
   }
 
+  // Look up business for AI context
+  const businesses = await db
+    .select()
+    .from(schema.business)
+    .where(eq(schema.business.id, businessId))
+    .limit(1)
+
+  const biz = businesses[0]
+  const businessName = biz?.name || "the business"
+  const businessCategory = biz?.category || "restaurant"
+
   const aiResult = generateReview({
     rawInput: rawInput || "",
     rating,
-    businessName: DEMO_BUSINESS.name,
-    businessCategory: DEMO_BUSINESS.category,
+    businessName,
+    businessCategory,
   })
 
   const reviewId = crypto.randomUUID()
+  const now = new Date()
+
+  const newReview = {
+    id: reviewId,
+    businessId,
+    customerName: customerName || null,
+    customerEmail: customerEmail || null,
+    rating,
+    rawInput: rawInput || null,
+    rawInputType: rawInputType || "text",
+    generatedReview: aiResult.generatedReview,
+    finalReview: aiResult.generatedReview,
+    platform: platform || "google",
+    postedToPlatform: false,
+    sentiment: aiResult.sentiment,
+    topics: JSON.stringify(aiResult.topics),
+    source: source || "link",
+    createdAt: now,
+  }
+
+  await db.insert(schema.review).values(newReview)
 
   return NextResponse.json({
     review: {
-      id: reviewId,
-      businessId,
-      customerName: customerName || null,
-      customerEmail: customerEmail || null,
-      rating,
-      rawInput: rawInput || null,
-      rawInputType: rawInputType || "text",
-      generatedReview: aiResult.generatedReview,
-      finalReview: aiResult.generatedReview,
-      platform: platform || "google",
-      sentiment: aiResult.sentiment,
-      topics: JSON.stringify(aiResult.topics),
-      source: source || "link",
-      createdAt: new Date().toISOString(),
+      ...newReview,
+      createdAt: now.toISOString(),
     },
     generatedReview: aiResult.generatedReview,
     sentiment: aiResult.sentiment,

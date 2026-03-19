@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { signOut } from "@/lib/auth-client"
 
 const navSections = [
   {
@@ -96,10 +97,14 @@ export function Sidebar({
     }
   }
 
-  function handleSignOut() {
+  async function handleSignOut() {
+    try {
+      await signOut()
+    } catch {
+      // Continue even if API fails
+    }
     if (typeof window !== "undefined") {
-      localStorage.removeItem("reviewforge_business")
-      localStorage.removeItem("reviewforge_settings")
+      localStorage.removeItem("reviewforge_onboarding")
     }
     router.push("/login")
   }

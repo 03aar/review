@@ -5,6 +5,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    url: "file:./reviewforge.db",
+    url: process.env.DATABASE_URL || "file:./reviewforge.db",
   },
 })

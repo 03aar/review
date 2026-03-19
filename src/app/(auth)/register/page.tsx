@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Star, ArrowRight } from "lucide-react"
+import { signUp } from "@/lib/auth-client"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -24,9 +25,22 @@ export default function RegisterPage() {
       return
     }
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 500))
-    toast.success("Account created! Setting up your dashboard...")
-    router.push("/dashboard")
+
+    try {
+      const result = await signUp.email({ name, email, password })
+
+      if (result.error) {
+        toast.error(result.error.message || "Registration failed. Please try again.")
+        setLoading(false)
+        return
+      }
+
+      toast.success("Account created! Setting up your dashboard...")
+      router.push("/dashboard")
+    } catch {
+      toast.error("Something went wrong. Please try again.")
+      setLoading(false)
+    }
   }
 
   return (

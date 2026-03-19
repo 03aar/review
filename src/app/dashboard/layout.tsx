@@ -1,12 +1,14 @@
 "use client"
 
 import { useEffect, useState, useCallback, createContext, useContext } from "react"
+import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { SearchCommand, SearchTrigger } from "@/components/dashboard/search-command"
 import { NotificationCenter } from "@/components/dashboard/notification-center"
 import { Loader2, Menu, X, CheckCircle2 } from "lucide-react"
 import { generateSlug } from "@/lib/utils"
 import { toast } from "sonner"
+import { useSession } from "@/lib/auth-client"
 
 interface Business {
   id: string
@@ -14,8 +16,6 @@ interface Business {
   slug: string
   category: string
 }
-
-const STORAGE_KEY = "reviewforge_business"
 
 export const BusinessContext = createContext<{
   business: Business
@@ -28,62 +28,66 @@ export function useBusinessContext() {
   return ctx
 }
 
-function loadBusiness(): Business | null {
-  if (typeof window === "undefined") return null
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      if (parsed && parsed.id && parsed.name && parsed.slug && parsed.category) {
-        return parsed
-      }
-    }
-  } catch {
-    // Corrupted data, ignore
-  }
-  return null
-}
-
-function saveBusiness(b: Business) {
-  if (typeof window === "undefined") return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(b))
-}
-
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const router = useRouter()
+  const { data: session, isPending: sessionLoading } = useSession()
   const [business, setBusiness] = useState<Business | null>(null)
   const [loadingBusiness, setLoadingBusiness] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // Fetch business from API (database)
   useEffect(() => {
-    const saved = loadBusiness()
-    if (saved) {
-      setBusiness(saved)
+    if (sessionLoading) return
+    if (!session) {
+      router.push("/login")
+      return
     }
-    setLoadingBusiness(false)
-  }, [])
+
+    async function fetchBusiness() {
+      try {
+        const res = await fetch("/api/businesses")
+        if (!res.ok) throw new Error("Failed to fetch businesses")
+        const businesses = await res.json()
+        if (businesses.length > 0) {
+          const b = businesses[0]
+          setBusiness({ id: b.id, name: b.name, slug: b.slug, category: b.category })
+        }
+      } catch {
+        // No business yet - show setup
+      } finally {
+        setLoadingBusiness(false)
+      }
+    }
+
+    fetchBusiness()
+  }, [session, sessionLoading, router])
 
   const updateBusiness = useCallback((updates: Partial<Business>) => {
     setBusiness((prev) => {
       if (!prev) return prev
-      const updated = { ...prev, ...updates }
-      saveBusiness(updated)
-      return updated
+      return { ...prev, ...updates }
     })
   }, [])
 
-  function handleBusinessCreated(b: Business) {
-    saveBusiness(b)
+  async function handleBusinessCreated(b: Business) {
     setBusiness(b)
   }
 
-  // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false)
   }, [children])
+
+  if (sessionLoading || loadingBusiness) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#eef8e6]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-[#eef8e6]">
@@ -140,17 +144,13 @@ export default function DashboardLayout({
             <SearchTrigger />
             <NotificationCenter />
             <div className="w-8 h-8 rounded-full bg-[#d4f0c0] flex items-center justify-center text-xs font-bold text-[#1a3a2a]">
-              {business?.name?.[0]?.toUpperCase() || "U"}
+              {session?.user?.name?.[0]?.toUpperCase() || business?.name?.[0]?.toUpperCase() || "U"}
             </div>
           </div>
         </div>
 
         <div className="p-4 md:p-6 max-w-7xl mx-auto">
-          {loadingBusiness ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-[#2d6a4f]" />
-            </div>
-          ) : !business ? (
+          {!business ? (
             <SetupBusiness onCreated={handleBusinessCreated} />
           ) : (
             <BusinessContext.Provider value={{ business, updateBusiness }}>
@@ -175,20 +175,33 @@ function SetupBusiness({ onCreated }: { onCreated: (b: Business) => void }) {
     if (!name.trim()) return
     setLoading(true)
 
-    // Simulate a brief delay for UX
-    await new Promise((r) => setTimeout(r, 600))
+    try {
+      const res = await fetch("/api/businesses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), category }),
+      })
 
-    const slug = generateSlug(name)
-    const newBusiness: Business = {
-      id: `biz-${Date.now()}`,
-      name: name.trim(),
-      slug,
-      category,
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error || "Failed to create business")
+        setLoading(false)
+        return
+      }
+
+      const newBusiness = await res.json()
+      onCreated({
+        id: newBusiness.id,
+        name: newBusiness.name,
+        slug: newBusiness.slug,
+        category: newBusiness.category,
+      })
+      toast.success("Business created! Your review link is ready.")
+    } catch {
+      toast.error("Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
     }
-
-    onCreated(newBusiness)
-    toast.success("Business created! Your review link is ready.")
-    setLoading(false)
   }
 
   const categories = [
