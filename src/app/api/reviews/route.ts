@@ -4,6 +4,8 @@ import * as schema from "@/db/schema"
 import { eq, desc } from "drizzle-orm"
 import { generateReview } from "@/lib/ai"
 import { getSession } from "@/lib/auth-server"
+import { dispatchWebhook } from "@/lib/webhook-dispatch"
+import { notifyNewReview, checkAndUnlockAchievements } from "@/lib/notifications"
 
 export async function GET(req: NextRequest) {
   const session = await getSession()
@@ -103,6 +105,30 @@ export async function POST(req: NextRequest) {
   }
 
   await db.insert(schema.review).values(newReview)
+
+  // Log activity
+  await db.insert(schema.activityLog).values({
+    id: crypto.randomUUID(),
+    businessId,
+    action: "review.created",
+    entityType: "review",
+    entityId: reviewId,
+    details: JSON.stringify({ rating, sentiment: aiResult.sentiment, source: source || "link" }),
+    createdAt: now,
+  })
+
+  // Fire notifications and webhooks asynchronously (don't block response)
+  Promise.all([
+    notifyNewReview(businessId, { customerName, rating, sentiment: aiResult.sentiment }),
+    dispatchWebhook(businessId, rating <= 2 ? "review.negative" : "review.created", {
+      reviewId,
+      rating,
+      sentiment: aiResult.sentiment,
+      customerName,
+      generatedReview: aiResult.generatedReview,
+    }),
+    checkAndUnlockAchievements(businessId),
+  ]).catch(() => {}) // Silently handle background errors
 
   return NextResponse.json({
     review: {
